@@ -1,0 +1,13 @@
+{
+  "name": "mock-api",
+  "version": "1.0.0",
+  "description": "Mock REST API for videos and categories",
+  "main": "mock.js",
+  "type": "module",
+  "scripts": {
+    "start": "node mock.js"
+  },
+  "dependencies": {
+    "express": "^4.18.2"
+  }
+}
