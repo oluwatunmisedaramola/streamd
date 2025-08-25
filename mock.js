@@ -1,4 +1,102 @@
 import express from "express";
+import pool from "./db.js";
+
+const app = express();
+app.use(express.json());
+
+// ---- Routes ----
+
+// List all categories
+app.get("/categories", async (req, res) => {
+  try {
+    const conn = await pool.getConnection();
+    const rows = await conn.query("SELECT id, name FROM categories");
+    conn.release();
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Get videos (optionally filter by category name)
+app.get("/videos", async (req, res) => {
+  const category = req.query.category?.toLowerCase();
+  try {
+    const conn = await pool.getConnection();
+    let rows;
+
+    if (category) {
+      rows = await conn.query(
+        `SELECT v.* FROM videos v
+         JOIN categories c ON v.category_id = c.id
+         WHERE LOWER(c.name) = ?`,
+        [category]
+      );
+    } else {
+      rows = await conn.query("SELECT * FROM videos");
+    }
+
+    conn.release();
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Get videos for a specific match
+app.get("/matches/:matchId/videos", async (req, res) => {
+  const { matchId } = req.params;
+  const category = req.query.category?.toLowerCase();
+
+  try {
+    const conn = await pool.getConnection();
+    let rows;
+
+    if (category) {
+      rows = await conn.query(
+        `SELECT v.* FROM videos v
+         JOIN categories c ON v.category_id = c.id
+         WHERE v.match_id = ? AND LOWER(c.name) = ?`,
+        [matchId, category]
+      );
+    } else {
+      rows = await conn.query("SELECT * FROM videos WHERE match_id = ?", [matchId]);
+    }
+
+    conn.release();
+    res.json(rows);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Get single video
+app.get("/videos/:id", async (req, res) => {
+  try {
+    const conn = await pool.getConnection();
+    const rows = await conn.query("SELECT * FROM videos WHERE id = ?", [req.params.id]);
+    conn.release();
+
+    if (rows.length > 0) return res.json(rows[0]);
+    res.status(404).json({ error: "Video not found" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// ---- Server ----
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ API running on port ${PORT}`);
+});
+
+
+
+/*import express from "express";
 
 const app = express();
 app.use(express.json());
@@ -74,3 +172,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`✅ Mock API running on port ${PORT}`);
 });
+*/

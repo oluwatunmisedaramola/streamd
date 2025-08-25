@@ -8,6 +8,7 @@
     "start": "node mock.js"
   },
   "dependencies": {
-    "express": "^4.18.2"
+    "express": "^4.18.2",
+    "mariadb": "^3.3.0"
   }
 }
