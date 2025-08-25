@@ -14,7 +14,7 @@ app.get("/categories", async (req, res) => {
     conn.release();
     res.json(rows);
   } catch (err) {
-    console.error(err);
+    console.error("❌ DB ERROR:", err);
     res.status(500).json({ error: "Database error" });
   }
 });
