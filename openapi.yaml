@@ -1,0 +1,91 @@
+openapi: "3.1.3"
+info:
+  title: Football Video API
+  version: "1.0.0"
+  description: API for fetching football videos by categories and date ranges.
+servers:
+  - url: https://your-render-service.onrender.com/api
+
+paths:
+  /categories:
+    get:
+      summary: Get all video categories
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              example:
+                data:
+                  - id: 1
+                    name: All goals
+                  - id: 2
+                    name: Highlights
+
+  /videos/category/{categoryName}:
+    get:
+      summary: Get videos by category
+      parameters:
+        - in: path
+          name: categoryName
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: page
+          schema: { type: integer }
+        - in: query
+          name: pageSize
+          schema: { type: integer }
+      responses:
+        "200":
+          description: List of videos
+
+  /videos/category/{categoryName}/date/{filter}:
+    get:
+      summary: Get videos by category and date filter
+      parameters:
+        - in: path
+          name: categoryName
+          required: true
+          schema: { type: string }
+        - in: path
+          name: filter
+          required: true
+          schema:
+            type: string
+            enum: [yesterday, today, tomorrow]
+      responses:
+        "200":
+          description: Filtered videos
+
+  /videos/date:
+    get:
+      summary: Get videos by date range (and optional category)
+      parameters:
+        - in: query
+          name: from
+          required: true
+          schema: { type: string, format: date }
+        - in: query
+          name: to
+          required: true
+          schema: { type: string, format: date }
+        - in: query
+          name: category
+          schema: { type: string }
+      responses:
+        "200":
+          description: Videos in date range
+
+  /videos/{id}:
+    get:
+      summary: Get single video by ID
+      parameters:
+        - in: path
+          name: id
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Video object
