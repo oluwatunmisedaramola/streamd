@@ -5,8 +5,7 @@
   "main": "mock.js",
   "type": "module",
 "scripts": {
-  "start": "npm run test-db && node mock.js",
-  "test-db": "node test-db.js"
+  "start": "node mock.js"
 },
   "dependencies": {
     "express": "^4.18.2",

@@ -6,6 +6,117 @@ app.use(express.json());
 
 // ---- Routes ----
 
+
+// Health check endpoint
+app.get("/healthz", async (req, res) => {
+  try {
+    const conn = await pool.getConnection();
+    const [row] = await conn.query("SELECT NOW() AS now");
+    conn.release();
+
+    res.json({
+      status: "ok",
+      dbTime: row.now,
+    });
+  } catch (err) {
+    console.error("❌ Health check DB error:", err);
+    res.status(500).json({
+      status: "error",
+      message: err.message,
+    });
+  }
+});
+
+// List all categories
+app.get("/categories", async (req, res) => {
+  try {
+    const rows = await pool.query("SELECT id, name FROM categories");
+    res.json(rows);
+  } catch (err) {
+    console.error("❌ DB ERROR:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Get videos (optionally filter by category name)
+app.get("/videos", async (req, res) => {
+  const category = req.query.category?.toLowerCase();
+  try {
+    let rows;
+    if (category) {
+      rows = await pool.query(
+        `SELECT v.* FROM videos v
+         JOIN categories c ON v.category_id = c.id
+         WHERE LOWER(c.name) = ?`,
+        [category]
+      );
+    } else {
+      rows = await pool.query("SELECT * FROM videos");
+    }
+    res.json(rows);
+  } catch (err) {
+    console.error("❌ DB ERROR:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Get videos for a specific match (with optional category filter)
+app.get("/matches/:matchId/videos", async (req, res) => {
+  const { matchId } = req.params;
+  const category = req.query.category?.toLowerCase();
+
+  try {
+    let rows;
+    if (category) {
+      rows = await pool.query(
+        `SELECT v.* FROM videos v
+         JOIN categories c ON v.category_id = c.id
+         WHERE v.match_id = ? AND LOWER(c.name) = ?`,
+        [matchId, category]
+      );
+    } else {
+      rows = await pool.query(
+        "SELECT * FROM videos WHERE match_id = ?",
+        [matchId]
+      );
+    }
+    res.json(rows);
+  } catch (err) {
+    console.error("❌ DB ERROR:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// Get single video by ID
+app.get("/videos/:id", async (req, res) => {
+  try {
+    const rows = await pool.query("SELECT * FROM videos WHERE id = ?", [
+      req.params.id,
+    ]);
+    if (rows.length > 0) return res.json(rows[0]);
+    res.status(404).json({ error: "Video not found" });
+  } catch (err) {
+    console.error("❌ DB ERROR:", err);
+    res.status(500).json({ error: "Database error" });
+  }
+});
+
+// ---- Server ----
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`✅ API running on port ${PORT}`);
+});
+
+
+/*
+import express from "express";
+import pool from "./db.js";
+
+const app = express();
+app.use(express.json());
+
+// ---- Routes ----
+
 // List all categories
 app.get("/categories", async (req, res) => {
   try {
