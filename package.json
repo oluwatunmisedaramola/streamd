@@ -4,9 +4,10 @@
   "description": "Mock REST API for videos and categories",
   "main": "mock.js",
   "type": "module",
-  "scripts": {
-    "start": "node mock.js"
-  },
+"scripts": {
+  "start": "npm run test-db && node mock.js",
+  "test-db": "node test-db.js"
+},
   "dependencies": {
     "express": "^4.18.2",
     "mariadb": "^3.3.0"
