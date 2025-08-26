@@ -1,14 +1,21 @@
 {
-  "name": "mock-api",
+  "name": "football-video-api",
   "version": "1.0.0",
-  "description": "Mock REST API for videos and categories",
-  "main": "mock.js",
   "type": "module",
-"scripts": {
-  "start": "node mock.js"
-},
+  "main": "mock.js",
+  "scripts": {
+    "start": "node mock.js",
+    "dev": "nodemon mock.js"
+  },
   "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
     "express": "^4.18.2",
-    "mariadb": "^3.3.0"
+    "luxon": "^3.4.3",
+    "mysql2": "^3.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.1"
   }
 }
+
