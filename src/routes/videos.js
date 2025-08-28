@@ -53,7 +53,8 @@ router.get("/category/:categoryName/date/:filter", async (req, res, next) => {
   }
 });
 
-// GET /api/videos/date?from=YYYY-MM-DD&to=YYYY-MM-DD[&category=...]
+
+// ✅ Old: GET /api/videos/date?from=YYYY-MM-DD&to=YYYY-MM-DD[&category=...]
 router.get("/date", async (req, res, next) => {
   const { from, to, category, page = 1, pageSize = 10, sort = "DESC" } = req.query;
 
@@ -74,7 +75,7 @@ router.get("/date", async (req, res, next) => {
   }
 });
 
-// GET /api/videos/:id
+// ✅ Old: GET /api/videos/:id
 router.get("/:id", async (req, res, next) => {
   try {
     const [rows] = await pool.query(queries.getVideoById, [req.params.id]);
@@ -84,5 +85,21 @@ router.get("/:id", async (req, res, next) => {
     next(err);
   }
 });
+
+// ✅ New: GET /api/videos (all videos, paginated)
+router.get("/", async (req, res, next) => {
+  const { page = 1, pageSize = 10, sort = "DESC" } = req.query;
+
+  try {
+    const [rows] = await pool.query(
+      queries.getAllVideos(sort),
+      [Number(pageSize), (page - 1) * pageSize]
+    );
+    res.json({ data: rows });
+  } catch (err) {
+    next(err);
+  }
+});
+
 
 export default router;

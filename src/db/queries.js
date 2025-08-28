@@ -44,5 +44,18 @@ export const queries = {
   getVideoById: `
     ${buildVideoSelect()}
     WHERE v.id = ?
+  `,
+
+  getAllVideos: (sort = "DESC") => `
+    ${buildVideoSelect()}
+    ORDER BY m.date ${sort}
+    LIMIT ? OFFSET ?
+  `,
+
+  getAllVideosByDate: (sort = "DESC") => `
+    ${buildVideoSelect()}
+    WHERE DATE(m.date) BETWEEN ? AND ?
+    ORDER BY m.date ${sort}
+    LIMIT ? OFFSET ?
   `
 };
