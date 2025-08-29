@@ -2,33 +2,63 @@ import express from "express";
 import pool from "../db/pool.js";
 import { queries } from "../db/queries.js";
 import { DateTime } from "luxon";
+import { successResponse, errorResponse } from "../utils/response.js";
 
 const router = express.Router();
 
+// Helper to build pagination metadata
+const buildMetadata = (total, page, pageSize) => ({
+  total_items: total,
+  page,
+  pageSize,
+  total_pages: Math.ceil(total / pageSize),
+  has_previous: page > 1,
+  has_next: page * pageSize < total,
+  previous_page: page > 1 ? page - 1 : null,
+  next_page: page * pageSize < total ? page + 1 : null,
+});
+
+// -------------------------
 // GET /api/videos/category/:categoryName
+// -------------------------
 router.get("/category/:categoryName", async (req, res, next) => {
   const { categoryName } = req.params;
   const { page = 1, pageSize = 10, sort = "DESC" } = req.query;
 
   try {
+    const [[{ total }]] = await pool.query(
+      queries.countVideosByCategory,
+      [categoryName]
+    );
+
     const [rows] = await pool.query(
       queries.getVideosByCategory(sort),
       [categoryName, Number(pageSize), (page - 1) * pageSize]
     );
-    res.json({ data: rows });
+
+    return successResponse(
+      res,
+      rows,
+      buildMetadata(total, Number(page), Number(pageSize))
+    );
   } catch (err) {
     next(err);
   }
 });
 
+// -------------------------
 // GET /api/videos/category/:categoryName/date/:filter
+// yesterday | today | tomorrow
+// -------------------------
 router.get("/category/:categoryName/date/:filter", async (req, res, next) => {
   const { categoryName, filter } = req.params;
-  const { page = 1, pageSize = 10, sort = "DESC", tz = "Africa/Lagos" } = req.query;
+  const { page = 1, pageSize = 10, sort = "DESC", tz = "Africa/Lagos" } =
+    req.query;
 
   const now = DateTime.now().setZone(tz);
   let start, end;
 
+  // 🔥 UPDATED: Use Luxon to resolve filter -> from/to
   if (filter === "yesterday") {
     start = now.minus({ days: 1 }).startOf("day");
     end = now.minus({ days: 1 }).endOf("day");
@@ -39,67 +69,146 @@ router.get("/category/:categoryName/date/:filter", async (req, res, next) => {
     start = now.plus({ days: 1 }).startOf("day");
     end = now.plus({ days: 1 }).endOf("day");
   } else {
-    return res.status(400).json({ error: "Invalid filter. Use yesterday|today|tomorrow" });
+    return errorResponse(res, 400, "Invalid filter. Use yesterday|today|tomorrow");
   }
 
   try {
-    const [rows] = await pool.query(
-      queries.getVideosByCategoryAndDate(sort),
-      [categoryName, start.toFormat("yyyy-MM-dd"), end.toFormat("yyyy-MM-dd"), Number(pageSize), (page - 1) * pageSize]
+    const [[{ total }]] = await pool.query(
+      queries.countVideosByCategoryAndDate,
+      [categoryName, start.toFormat("yyyy-MM-dd"), end.toFormat("yyyy-MM-dd")]
     );
-    res.json({ data: rows });
+
+    const [rows] = await pool.query(queries.getVideosByCategoryAndDate(sort), [
+      categoryName,
+      start.toFormat("yyyy-MM-dd"),
+      end.toFormat("yyyy-MM-dd"),
+      Number(pageSize),
+      (page - 1) * pageSize,
+    ]);
+
+    return successResponse(
+      res,
+      rows,
+      buildMetadata(total, Number(page), Number(pageSize))
+    );
   } catch (err) {
     next(err);
   }
 });
 
 
-// ✅ Old: GET /api/videos/date?from=YYYY-MM-DD&to=YYYY-MM-DD[&category=...]
-router.get("/date", async (req, res, next) => {
-  const { from, to, category, page = 1, pageSize = 10, sort = "DESC" } = req.query;
+// -------------------------
+// GET /api/videos/category/:categoryName/date
+// NEW ENDPOINT: supports from/to query params (backward compatible with filter version)
+// -------------------------
+router.get("/category/:categoryName/date", async (req, res, next) => {
+  const { categoryName } = req.params;
+  const { from, to, page = 1, pageSize = 10, sort = "DESC" } = req.query;
 
   if (!from || !to) {
-    return res.status(400).json({ error: "Missing 'from' or 'to' query params" });
+    return errorResponse(res, 400, "Missing 'from' or 'to' query params");
   }
 
   try {
-    const sql = queries.getVideosByDateRange(!!category, sort);
-    const params = category
-      ? [from, to, category, Number(pageSize), (page - 1) * pageSize]
-      : [from, to, Number(pageSize), (page - 1) * pageSize];
+    const [[{ total }]] = await pool.query(
+      queries.countVideosByCategoryAndDate,
+      [categoryName, from, to]
+    );
 
-    const [rows] = await pool.query(sql, params);
-    res.json({ data: rows });
+    const [rows] = await pool.query(queries.getVideosByCategoryAndDate(sort), [
+      categoryName,
+      from,
+      to,
+      Number(pageSize),
+      (page - 1) * pageSize,
+    ]);
+
+    return successResponse(
+      res,
+      rows,
+      buildMetadata(total, Number(page), Number(pageSize))
+    );
   } catch (err) {
     next(err);
   }
 });
 
-// ✅ Old: GET /api/videos/:id
+
+// -------------------------
+// GET /api/videos/date
+// supports: ?from=YYYY-MM-DD&to=YYYY-MM-DD[&category=...]
+// -------------------------
+router.get("/date", async (req, res, next) => {
+  const { from, to, category, page = 1, pageSize = 10, sort = "DESC" } =
+    req.query;
+
+  if (!from || !to) {
+    return errorResponse(res, 400, "Missing 'from' or 'to' query params");
+  }
+
+  try {
+    let totalQuery, params, sql;
+
+    if (category) {
+      totalQuery = queries.countVideosByDateAndCategory;
+      sql = queries.getVideosByDateRange(true, sort);
+      params = [from, to, category, Number(pageSize), (page - 1) * pageSize];
+    } else {
+      totalQuery = queries.countVideosByDate;
+      sql = queries.getVideosByDateRange(false, sort);
+      params = [from, to, Number(pageSize), (page - 1) * pageSize];
+    }
+
+    const [[{ total }]] = await pool.query(
+      totalQuery,
+      category ? [from, to, category] : [from, to]
+    );
+    const [rows] = await pool.query(sql, params);
+
+    return successResponse(
+      res,
+      rows,
+      buildMetadata(total, Number(page), Number(pageSize))
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
+// -------------------------
+// GET /api/videos/:id
+// -------------------------
 router.get("/:id", async (req, res, next) => {
   try {
     const [rows] = await pool.query(queries.getVideoById, [req.params.id]);
-    if (!rows.length) return res.status(404).json({ error: "Video not found" });
-    res.json(rows[0]);
+    if (!rows.length) return errorResponse(res, 404, "Video not found");
+    return successResponse(res, rows[0]);
   } catch (err) {
     next(err);
   }
 });
 
-// ✅ New: GET /api/videos (all videos, paginated)
+// -------------------------
+// GET /api/videos (all videos, paginated)
+// -------------------------
 router.get("/", async (req, res, next) => {
   const { page = 1, pageSize = 10, sort = "DESC" } = req.query;
 
   try {
-    const [rows] = await pool.query(
-      queries.getAllVideos(sort),
-      [Number(pageSize), (page - 1) * pageSize]
+    const [[{ total }]] = await pool.query(queries.countAllVideos);
+    const [rows] = await pool.query(queries.getAllVideos(sort), [
+      Number(pageSize),
+      (page - 1) * pageSize,
+    ]);
+
+    return successResponse(
+      res,
+      rows,
+      buildMetadata(total, Number(page), Number(pageSize))
     );
-    res.json({ data: rows });
   } catch (err) {
     next(err);
   }
 });
-
 
 export default router;
