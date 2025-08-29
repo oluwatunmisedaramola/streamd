@@ -105,4 +105,11 @@ export const queries = {
     JOIN matches m ON v.match_id = m.id
     WHERE v.id = ?
   `,
+
+   // Get all categories
+  getCategories: `
+    SELECT id, name
+    FROM categories
+    ORDER BY name ASC
+  `,
 };
