@@ -1,6 +1,9 @@
 import express from "express";
 import cors from "cors";
 import dotenv from "dotenv";
+import YAML from "yamljs";
+import path from "path";
+import { fileURLToPath } from "url";
 
 import categoriesRouter from "./src/routes/categories.js";
 import videosRouter from "./src/routes/videos.js";
@@ -8,9 +11,15 @@ import videosRouter from "./src/routes/videos.js";
 dotenv.config();
 
 const app = express();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const swaggerDocument = YAML.load(path.join(__dirname, "../openapi.yaml"));
 
 app.use(cors());
 app.use(express.json());
+
+// mount swagger docs
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Routes
 app.use("/api/categories", categoriesRouter);
@@ -30,6 +39,7 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Swagger UI available at http://localhost:${PORT}/api-docs`);
 });
 
 /*import express from "express";
