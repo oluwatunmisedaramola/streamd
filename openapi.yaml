@@ -397,6 +397,12 @@ components:
           type: string
           format: date-time
           description: Match kickoff datetime (from matches.date)
+        league:            # NEW
+          type: string
+        country:           # NEW
+          type: string
+        video_url:         # NEW
+          type: string  
       required: [id, title, category, match_date]
 
     Category:
