@@ -10,7 +10,7 @@ export const queries = {
 
   // Get videos by category
   getVideosByCategory: (sort = "DESC") => `
-    SELECT v.id, v.title, v.thumbnail, c.name as category, m.date as match_date
+    SELECT v.id, v.title, m.thumbnail, c.name as category, m.date as match_date
     FROM videos v
     JOIN categories c ON v.category_id = c.id
     JOIN matches m ON v.match_id = m.id
@@ -30,7 +30,7 @@ export const queries = {
 
   // Get videos by category + date
   getVideosByCategoryAndDate: (sort = "DESC") => `
-    SELECT v.id, v.title, v.thumbnail, c.name as category, m.date as match_date
+    SELECT v.id, v.title, m.thumbnail, c.name as category, m.date as match_date
     FROM videos v
     JOIN categories c ON v.category_id = c.id
     JOIN matches m ON v.match_id = m.id
@@ -60,7 +60,7 @@ export const queries = {
   getVideosByDateRange: (withCategory = false, sort = "DESC") => {
     if (withCategory) {
       return `
-        SELECT v.id, v.title, v.thumbnail, c.name as category, m.date as match_date
+        SELECT v.id, v.title, m.thumbnail, c.name as category, m.date as match_date
         FROM videos v
         JOIN categories c ON v.category_id = c.id
         JOIN matches m ON v.match_id = m.id
@@ -70,7 +70,7 @@ export const queries = {
       `;
     } else {
       return `
-        SELECT v.id, v.title, v.thumbnail, c.name as category, m.date as match_date
+        SELECT v.id, v.title, m.thumbnail, c.name as category, m.date as match_date
         FROM videos v
         JOIN categories c ON v.category_id = c.id
         JOIN matches m ON v.match_id = m.id
@@ -89,7 +89,7 @@ export const queries = {
 
   // Get all videos
   getAllVideos: (sort = "DESC") => `
-    SELECT v.id, v.title, v.thumbnail, c.name as category, m.date as match_date
+    SELECT v.id, v.title, m.thumbnail, c.name as category, m.date as match_date
     FROM videos v
     JOIN categories c ON v.category_id = c.id
     JOIN matches m ON v.match_id = m.id
@@ -99,7 +99,7 @@ export const queries = {
 
   // Get video by ID
   getVideoById: `
-    SELECT v.id, v.title, v.thumbnail, c.name as category, m.date as match_date
+    SELECT v.id, v.title, m.thumbnail, c.name as category, m.date as match_date
     FROM videos v
     JOIN categories c ON v.category_id = c.id
     JOIN matches m ON v.match_id = m.id
