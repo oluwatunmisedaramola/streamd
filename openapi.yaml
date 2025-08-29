@@ -13,10 +13,10 @@ paths:
       parameters:
         - in: query
           name: page
-          schema: { type: integer, default: 1 }
+          schema: { type: integer, default: 1, minimum: 1 }
         - in: query
           name: pageSize
-          schema: { type: integer, default: 10 }
+          schema: { type: integer, default: 10, minimum: 1 }
         - in: query
           name: sort
           schema: { type: string, enum: [ASC, DESC], default: DESC }
@@ -27,16 +27,43 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PaginatedVideos"
+              examples:
+                success:
+                  value:
+                    data:
+                      - id: 101
+                        title: "Arsenal vs Chelsea — Highlights"
+                        thumbnail: "https://cdn.example.com/t/101.jpg"
+                        category: "Highlights"
+                        match_date: "2025-02-01T19:45:00Z"
+                      - id: 102
+                        title: "Liverpool vs City — Goals"
+                        thumbnail: null
+                        category: "Goals"
+                        match_date: "2025-02-01T16:30:00Z"
+                    meta:
+                      total_items: 200
+                      page: 1
+                      pageSize: 10
+                      total_pages: 20
+                      has_previous: false
+                      has_next: true
+                      previous_page: null
+                      next_page: 2
         "400":
           description: Invalid query params
           content:
             application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
               example:
                 error: "Invalid 'page' parameter. Must be a positive integer."
         "500":
           description: Internal server error
           content:
             application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
               example:
                 error: "Unexpected database error."
 
@@ -50,43 +77,59 @@ paths:
           schema: { type: string }
         - in: query
           name: page
-          schema: { type: integer, default: 1 }
+          schema: { type: integer, default: 1, minimum: 1 }
         - in: query
           name: pageSize
-          schema: { type: integer, default: 10 }
+          schema: { type: integer, default: 10, minimum: 1 }
         - in: query
           name: sort
           schema: { type: string, enum: [ASC, DESC], default: DESC }
       responses:
         "200":
-          description: List of videos in a category
+          description: List of videos in a category (200 with empty list if category has no items)
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/PaginatedVideos"
+              examples:
+                success:
+                  value:
+                    data:
+                      - id: 77
+                        title: "Barcelona vs Real — Highlights"
+                        thumbnail: "https://cdn.example.com/t/77.jpg"
+                        category: "Highlights"
+                        match_date: "2025-01-20T20:00:00Z"
+                    meta:
+                      total_items: 1
+                      page: 1
+                      pageSize: 10
+                      total_pages: 1
+                      has_previous: false
+                      has_next: false
+                      previous_page: null
+                      next_page: null
         "400":
           description: Invalid query params
           content:
             application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
               example:
                 error: "Invalid 'page' parameter. Must be a positive integer."
-        "404":
-          description: Category not found
-          content:
-            application/json:
-              example:
-                error: "Category 'XYZ' does not exist."
         "500":
           description: Internal server error
           content:
             application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
               example:
                 error: "Unexpected database error."
 
   /videos/category/{categoryName}/date/{filter}:
     get:
       summary: Get videos by category and date filter
-      deprecated: true   # <<< PATCH: mark old endpoint as deprecated
+      deprecated: true
       parameters:
         - in: path
           name: categoryName
@@ -97,11 +140,15 @@ paths:
           required: true
           schema: { type: string, enum: [yesterday, today, tomorrow] }
         - in: query
+          name: tz
+          description: IANA timezone (used to calculate the filter window)
+          schema: { type: string, default: Africa/Lagos }
+        - in: query
           name: page
-          schema: { type: integer, default: 1 }
+          schema: { type: integer, default: 1, minimum: 1 }
         - in: query
           name: pageSize
-          schema: { type: integer, default: 10 }
+          schema: { type: integer, default: 10, minimum: 1 }
         - in: query
           name: sort
           schema: { type: string, enum: [ASC, DESC], default: DESC }
@@ -116,14 +163,10 @@ paths:
           description: Invalid date filter or query params
           content:
             application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
               example:
                 error: "Filter must be one of [yesterday, today, tomorrow]."
-        "404":
-          description: Category not found
-          content:
-            application/json:
-              example:
-                error: "Category 'XYZ' does not exist."
 
   /videos/category/{categoryName}/date:
     get:
@@ -143,10 +186,10 @@ paths:
           schema: { type: string, format: date }
         - in: query
           name: page
-          schema: { type: integer, default: 1 }
+          schema: { type: integer, default: 1, minimum: 1 }
         - in: query
           name: pageSize
-          schema: { type: integer, default: 10 }
+          schema: { type: integer, default: 10, minimum: 1 }
         - in: query
           name: sort
           schema: { type: string, enum: [ASC, DESC], default: DESC }
@@ -157,22 +200,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PaginatedVideos"
+              examples:
+                success:
+                  value:
+                    data:
+                      - id: 55
+                        title: "PSG vs Monaco — Highlights"
+                        thumbnail: "https://cdn.example.com/t/55.jpg"
+                        category: "Highlights"
+                        match_date: "2025-01-15T21:00:00Z"
+                    meta:
+                      total_items: 4
+                      page: 1
+                      pageSize: 10
+                      total_pages: 1
+                      has_previous: false
+                      has_next: false
+                      previous_page: null
+                      next_page: null
         "400":
           description: Invalid date range or query params
           content:
             application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
               example:
                 error: "Missing 'from' or 'to' query params."
-        "404":
-          description: Category not found
-          content:
-            application/json:
-              example:
-                error: "Category 'XYZ' does not exist."
         "500":
           description: Internal server error
           content:
             application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
               example:
                 error: "Unexpected database error."
 
@@ -193,10 +252,10 @@ paths:
           schema: { type: string }
         - in: query
           name: page
-          schema: { type: integer, default: 1 }
+          schema: { type: integer, default: 1, minimum: 1 }
         - in: query
           name: pageSize
-          schema: { type: integer, default: 10 }
+          schema: { type: integer, default: 10, minimum: 1 }
         - in: query
           name: sort
           schema: { type: string, enum: [ASC, DESC], default: DESC }
@@ -207,16 +266,38 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/PaginatedVideos"
+              examples:
+                success:
+                  value:
+                    data:
+                      - id: 88
+                        title: "Napoli vs Inter — Goals"
+                        thumbnail: null
+                        category: "Goals"
+                        match_date: "2025-02-02T18:00:00Z"
+                    meta:
+                      total_items: 12
+                      page: 2
+                      pageSize: 10
+                      total_pages: 2
+                      has_previous: true
+                      has_next: false
+                      previous_page: 1
+                      next_page: null
         "400":
           description: Invalid date range
           content:
             application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
               example:
-                error: "'from' must be earlier than 'to'."
+                error: "Missing 'from' or 'to' query params."
         "500":
           description: Internal server error
           content:
             application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
               example:
                 error: "Unexpected database error."
 
@@ -227,26 +308,42 @@ paths:
         - in: path
           name: id
           required: true
-          schema: { type: integer }   # <<< PATCH: updated from string → integer
+          schema: { type: integer, minimum: 1 }
       responses:
         "200":
           description: A single video
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Video"
+                type: object
+                properties:
+                  data:
+                    $ref: "#/components/schemas/Video"
+              examples:
+                success:
+                  value:
+                    data:
+                      id: 101
+                      title: "Arsenal vs Chelsea — Highlights"
+                      thumbnail: "https://cdn.example.com/t/101.jpg"
+                      category: "Highlights"
+                      match_date: "2025-02-01T19:45:00Z"
         "400":
           description: Invalid video ID
           content:
             application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
               example:
                 error: "Invalid 'id' parameter. Must be an integer."
         "404":
           description: Video not found
           content:
             application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
               example:
-                error: "Video with ID 6 does not exist."
+                error: "Video not found"
 
   /categories:
     get:
@@ -263,10 +360,20 @@ paths:
                     type: array
                     items:
                       $ref: "#/components/schemas/Category"
+              examples:
+                success:
+                  value:
+                    data:
+                      - id: 1
+                        name: "Highlights"
+                      - id: 2
+                        name: "Goals"
         "500":
           description: Internal server error
           content:
             application/json:
+              schema:
+                $ref: "#/components/schemas/Error"
               example:
                 error: "Unexpected database error."
 
@@ -274,39 +381,43 @@ components:
   schemas:
     Video:
       type: object
+      description: Lightweight video object returned by listing and detail endpoints.
       properties:
-        id:            # <<< PATCH: updated schema
+        id:
           type: integer
         title:
           type: string
-        description:
-          type: string
-        embed_code:    # <<< PATCH: added
-          type: string
-        thumbnail:     # <<< PATCH: added
+        thumbnail:
           type: string
           nullable: true
-        created_at:
+        category:
+          type: string
+          description: Category name (joined from categories.name)
+        match_date:
           type: string
           format: date-time
+          description: Match kickoff datetime (from matches.date)
+      required: [id, title, category, match_date]
 
     Category:
       type: object
       properties:
-        id: { type: string }
+        id: { type: integer }
         name: { type: string }
+      required: [id, name]
 
     PaginationMeta:
       type: object
       properties:
         total_items: { type: integer }
-        current_page: { type: integer }
-        page_size: { type: integer }
+        page: { type: integer }
+        pageSize: { type: integer }
         total_pages: { type: integer }
         has_previous: { type: boolean }
         has_next: { type: boolean }
         previous_page: { type: integer, nullable: true }
         next_page: { type: integer, nullable: true }
+      required: [total_items, page, pageSize, total_pages, has_previous, has_next]
 
     PaginatedVideos:
       type: object
@@ -317,3 +428,10 @@ components:
             $ref: "#/components/schemas/Video"
         meta:
           $ref: "#/components/schemas/PaginationMeta"
+      required: [data, meta]
+
+    Error:
+      type: object
+      properties:
+        error: { type: string }
+      required: [error]

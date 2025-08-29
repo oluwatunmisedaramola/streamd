@@ -58,7 +58,6 @@ router.get("/category/:categoryName/date/:filter", async (req, res, next) => {
   const now = DateTime.now().setZone(tz);
   let start, end;
 
-  // 🔥 UPDATED: Use Luxon to resolve filter -> from/to
   if (filter === "yesterday") {
     start = now.minus({ days: 1 }).startOf("day");
     end = now.minus({ days: 1 }).endOf("day");
@@ -96,10 +95,8 @@ router.get("/category/:categoryName/date/:filter", async (req, res, next) => {
   }
 });
 
-
 // -------------------------
 // GET /api/videos/category/:categoryName/date
-// NEW ENDPOINT: supports from/to query params (backward compatible with filter version)
 // -------------------------
 router.get("/category/:categoryName/date", async (req, res, next) => {
   const { categoryName } = req.params;
@@ -133,10 +130,8 @@ router.get("/category/:categoryName/date", async (req, res, next) => {
   }
 });
 
-
 // -------------------------
 // GET /api/videos/date
-// supports: ?from=YYYY-MM-DD&to=YYYY-MM-DD[&category=...]
 // -------------------------
 router.get("/date", async (req, res, next) => {
   const { from, to, category, page = 1, pageSize = 10, sort = "DESC" } =
@@ -189,7 +184,7 @@ router.get("/:id", async (req, res, next) => {
 });
 
 // -------------------------
-// GET /api/videos (all videos, paginated)
+// GET /api/videos
 // -------------------------
 router.get("/", async (req, res, next) => {
   const { page = 1, pageSize = 10, sort = "DESC" } = req.query;

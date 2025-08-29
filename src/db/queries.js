@@ -1,137 +1,108 @@
+// db/queries.js
 export const queries = {
-  // -------------------
-  // Categories
-  // -------------------
-  getAllCategories: `
-    SELECT id, name, description 
-    FROM categories 
-    ORDER BY name ASC
-  `,
-
-  // -------------------
-  // Videos by Category
-  // -------------------
+  // Count videos by category
   countVideosByCategory: `
-    SELECT COUNT(*) AS total 
+    SELECT COUNT(*) as total
     FROM videos v
     JOIN categories c ON v.category_id = c.id
     WHERE c.name = ?
   `,
 
-  // 🔥 UPDATED: added v.thumbnail
+  // Get videos by category
   getVideosByCategory: (sort = "DESC") => `
-    SELECT v.id, v.title, v.description, v.url, v.published_at, v.thumbnail, c.name as category
+    SELECT v.id, v.title, v.thumbnail, c.name as category, m.date as match_date
     FROM videos v
     JOIN categories c ON v.category_id = c.id
+    JOIN matches m ON v.match_id = m.id
     WHERE c.name = ?
-    ORDER BY v.published_at ${sort}
+    ORDER BY m.date ${sort}
     LIMIT ? OFFSET ?
   `,
 
-  // -------------------
-  // Videos by Category + Date
-  // -------------------
+  // Count videos by category + date
   countVideosByCategoryAndDate: `
-    SELECT COUNT(*) AS total 
+    SELECT COUNT(*) as total
     FROM videos v
     JOIN categories c ON v.category_id = c.id
-    WHERE c.name = ?
-      AND DATE(v.published_at) BETWEEN ? AND ?
+    JOIN matches m ON v.match_id = m.id
+    WHERE c.name = ? AND m.date BETWEEN ? AND ?
   `,
 
-  // 🔥 UPDATED: added v.thumbnail
+  // Get videos by category + date
   getVideosByCategoryAndDate: (sort = "DESC") => `
-    SELECT v.id, v.title, v.description, v.url, v.published_at, v.thumbnail, c.name as category
+    SELECT v.id, v.title, v.thumbnail, c.name as category, m.date as match_date
     FROM videos v
     JOIN categories c ON v.category_id = c.id
-    WHERE c.name = ?
-      AND DATE(v.published_at) BETWEEN ? AND ?
-    ORDER BY v.published_at ${sort}
+    JOIN matches m ON v.match_id = m.id
+    WHERE c.name = ? AND m.date BETWEEN ? AND ?
+    ORDER BY m.date ${sort}
     LIMIT ? OFFSET ?
   `,
 
-  // -------------------
-  // Videos by Date (with optional category filter)
-  // -------------------
+  // Count videos by date
   countVideosByDate: `
-    SELECT COUNT(*) AS total
-    FROM videos
-    WHERE DATE(published_at) BETWEEN ? AND ?
+    SELECT COUNT(*) as total
+    FROM videos v
+    JOIN matches m ON v.match_id = m.id
+    WHERE m.date BETWEEN ? AND ?
   `,
 
+  // Count videos by date + category
   countVideosByDateAndCategory: `
-    SELECT COUNT(*) AS total
+    SELECT COUNT(*) as total
     FROM videos v
     JOIN categories c ON v.category_id = c.id
-    WHERE DATE(v.published_at) BETWEEN ? AND ?
-      AND c.name = ?
+    JOIN matches m ON v.match_id = m.id
+    WHERE m.date BETWEEN ? AND ? AND c.name = ?
   `,
 
-  // 🔥 UPDATED: added v.thumbnail
-  getVideosByDateRange: (withCategory = false, sort = "DESC") =>
-    withCategory
-      ? `
-        SELECT v.id, v.title, v.description, v.url, v.published_at, v.thumbnail, c.name as category
+  // Get videos by date range (with/without category)
+  getVideosByDateRange: (withCategory = false, sort = "DESC") => {
+    if (withCategory) {
+      return `
+        SELECT v.id, v.title, v.thumbnail, c.name as category, m.date as match_date
         FROM videos v
         JOIN categories c ON v.category_id = c.id
-        WHERE DATE(v.published_at) BETWEEN ? AND ?
-          AND c.name = ?
-        ORDER BY v.published_at ${sort}
+        JOIN matches m ON v.match_id = m.id
+        WHERE m.date BETWEEN ? AND ? AND c.name = ?
+        ORDER BY m.date ${sort}
         LIMIT ? OFFSET ?
-      `
-      : `
-        SELECT v.id, v.title, v.description, v.url, v.published_at, v.thumbnail, c.name as category
+      `;
+    } else {
+      return `
+        SELECT v.id, v.title, v.thumbnail, c.name as category, m.date as match_date
         FROM videos v
         JOIN categories c ON v.category_id = c.id
-        WHERE DATE(v.published_at) BETWEEN ? AND ?
-        ORDER BY v.published_at ${sort}
+        JOIN matches m ON v.match_id = m.id
+        WHERE m.date BETWEEN ? AND ?
+        ORDER BY m.date ${sort}
         LIMIT ? OFFSET ?
-      `,
+      `;
+    }
+  },
 
-  // -------------------
-  // Single Video
-  // -------------------
-  // 🔥 UPDATED: added v.thumbnail
-  getVideoById: `
-    SELECT v.id, v.title, v.description, v.url, v.published_at, v.thumbnail, c.name as category
-    FROM videos v
-    JOIN categories c ON v.category_id = c.id
-    WHERE v.id = ?
-  `,
-
-  // -------------------
-  // All Videos (any category)
-  // -------------------
+  // Count all videos
   countAllVideos: `
-    SELECT COUNT(*) AS total
+    SELECT COUNT(*) as total
     FROM videos
   `,
 
-  // 🔥 UPDATED: added v.thumbnail
+  // Get all videos
   getAllVideos: (sort = "DESC") => `
-    SELECT v.id, v.title, v.description, v.url, v.published_at, v.thumbnail, c.name as category
+    SELECT v.id, v.title, v.thumbnail, c.name as category, m.date as match_date
     FROM videos v
     JOIN categories c ON v.category_id = c.id
-    ORDER BY v.published_at ${sort}
+    JOIN matches m ON v.match_id = m.id
+    ORDER BY m.date ${sort}
     LIMIT ? OFFSET ?
   `,
 
-  // -------------------
-  // All Videos by Date
-  // -------------------
-  countAllVideosByDate: `
-    SELECT COUNT(*) AS total
-    FROM videos
-    WHERE DATE(published_at) BETWEEN ? AND ?
-  `,
-
-  // 🔥 UPDATED: added v.thumbnail
-  getAllVideosByDate: (sort = "DESC") => `
-    SELECT v.id, v.title, v.description, v.url, v.published_at, v.thumbnail, c.name as category
+  // Get video by ID
+  getVideoById: `
+    SELECT v.id, v.title, v.thumbnail, c.name as category, m.date as match_date
     FROM videos v
     JOIN categories c ON v.category_id = c.id
-    WHERE DATE(v.published_at) BETWEEN ? AND ?
-    ORDER BY v.published_at ${sort}
-    LIMIT ? OFFSET ?
+    JOIN matches m ON v.match_id = m.id
+    WHERE v.id = ?
   `,
 };
