@@ -25,6 +25,9 @@ router.get("/category/:categoryName", async (req, res, next) => {
   const { categoryName } = req.params;
   const { page = 1, pageSize = 10, sort = "DESC" } = req.query;
 
+  // ✅ CAP pageSize here
+  const cappedPageSize = Math.min(Number(pageSize), 100);
+
   try {
     const [[{ total }]] = await pool.query(
       queries.countVideosByCategory,
@@ -33,13 +36,13 @@ router.get("/category/:categoryName", async (req, res, next) => {
 
     const [rows] = await pool.query(
       queries.getVideosByCategory(sort),
-      [categoryName, Number(pageSize), (page - 1) * pageSize]
+      [categoryName, cappedPageSize, (page - 1) * cappedPageSize]
     );
 
     return successResponse(
       res,
       rows,
-      buildMetadata(total, Number(page), Number(pageSize))
+      buildMetadata(total, Number(page), cappedPageSize) // ✅ use cappedPageSize
     );
   } catch (err) {
     next(err);
@@ -48,12 +51,14 @@ router.get("/category/:categoryName", async (req, res, next) => {
 
 // -------------------------
 // GET /api/videos/category/:categoryName/date/:filter
-// yesterday | today | tomorrow
 // -------------------------
 router.get("/category/:categoryName/date/:filter", async (req, res, next) => {
   const { categoryName, filter } = req.params;
   const { page = 1, pageSize = 10, sort = "DESC", tz = "Africa/Lagos" } =
     req.query;
+
+  // ✅ CAP pageSize
+  const cappedPageSize = Math.min(Number(pageSize), 100);
 
   const now = DateTime.now().setZone(tz);
   let start, end;
@@ -81,14 +86,14 @@ router.get("/category/:categoryName/date/:filter", async (req, res, next) => {
       categoryName,
       start.toFormat("yyyy-MM-dd"),
       end.toFormat("yyyy-MM-dd"),
-      Number(pageSize),
-      (page - 1) * pageSize,
+      cappedPageSize,
+      (page - 1) * cappedPageSize,
     ]);
 
     return successResponse(
       res,
       rows,
-      buildMetadata(total, Number(page), Number(pageSize))
+      buildMetadata(total, Number(page), cappedPageSize)
     );
   } catch (err) {
     next(err);
@@ -101,6 +106,9 @@ router.get("/category/:categoryName/date/:filter", async (req, res, next) => {
 router.get("/category/:categoryName/date", async (req, res, next) => {
   const { categoryName } = req.params;
   const { from, to, page = 1, pageSize = 10, sort = "DESC" } = req.query;
+
+  // ✅ CAP pageSize
+  const cappedPageSize = Math.min(Number(pageSize), 100);
 
   if (!from || !to) {
     return errorResponse(res, 400, "Missing 'from' or 'to' query params");
@@ -116,14 +124,14 @@ router.get("/category/:categoryName/date", async (req, res, next) => {
       categoryName,
       from,
       to,
-      Number(pageSize),
-      (page - 1) * pageSize,
+      cappedPageSize,
+      (page - 1) * cappedPageSize,
     ]);
 
     return successResponse(
       res,
       rows,
-      buildMetadata(total, Number(page), Number(pageSize))
+      buildMetadata(total, Number(page), cappedPageSize)
     );
   } catch (err) {
     next(err);
@@ -137,6 +145,9 @@ router.get("/date", async (req, res, next) => {
   const { from, to, category, page = 1, pageSize = 10, sort = "DESC" } =
     req.query;
 
+  // ✅ CAP pageSize
+  const cappedPageSize = Math.min(Number(pageSize), 100);
+
   if (!from || !to) {
     return errorResponse(res, 400, "Missing 'from' or 'to' query params");
   }
@@ -147,11 +158,11 @@ router.get("/date", async (req, res, next) => {
     if (category) {
       totalQuery = queries.countVideosByDateAndCategory;
       sql = queries.getVideosByDateRange(true, sort);
-      params = [from, to, category, Number(pageSize), (page - 1) * pageSize];
+      params = [from, to, category, cappedPageSize, (page - 1) * cappedPageSize];
     } else {
       totalQuery = queries.countVideosByDate;
       sql = queries.getVideosByDateRange(false, sort);
-      params = [from, to, Number(pageSize), (page - 1) * pageSize];
+      params = [from, to, cappedPageSize, (page - 1) * cappedPageSize];
     }
 
     const [[{ total }]] = await pool.query(
@@ -163,7 +174,7 @@ router.get("/date", async (req, res, next) => {
     return successResponse(
       res,
       rows,
-      buildMetadata(total, Number(page), Number(pageSize))
+      buildMetadata(total, Number(page), cappedPageSize)
     );
   } catch (err) {
     next(err);
@@ -189,17 +200,20 @@ router.get("/:id", async (req, res, next) => {
 router.get("/", async (req, res, next) => {
   const { page = 1, pageSize = 10, sort = "DESC" } = req.query;
 
+  // ✅ CAP pageSize
+  const cappedPageSize = Math.min(Number(pageSize), 100);
+
   try {
     const [[{ total }]] = await pool.query(queries.countAllVideos);
     const [rows] = await pool.query(queries.getAllVideos(sort), [
-      Number(pageSize),
-      (page - 1) * pageSize,
+      cappedPageSize,
+      (page - 1) * cappedPageSize,
     ]);
 
     return successResponse(
       res,
       rows,
-      buildMetadata(total, Number(page), Number(pageSize))
+      buildMetadata(total, Number(page), cappedPageSize)
     );
   } catch (err) {
     next(err);

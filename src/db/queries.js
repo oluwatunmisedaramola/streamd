@@ -16,17 +16,17 @@ export const queries = {
       m.thumbnail, 
       c.name as category, 
       m.date as match_date,
-      l.name as league,          /* NEW */
-      co.name as country,        /* NEW */
-      m.matchview_url as video_url  /* NEW */
+      l.name as league,         
+      co.name as country,       
+      m.matchview_url as video_url
     FROM videos v
     JOIN categories c ON v.category_id = c.id
     JOIN matches m ON v.match_id = m.id
-    JOIN leagues l ON m.league_id = l.id       /* NEW */
-    JOIN countries co ON l.country_id = co.id  /* NEW */
+    JOIN leagues l ON m.league_id = l.id
+    JOIN countries co ON l.country_id = co.id
     WHERE c.name = ?
     ORDER BY m.date ${sort}
-    LIMIT LEAST(?, 100) OFFSET ?    /* UPDATED: impose max 100 */
+    LIMIT ? OFFSET ?
   `,
 
   // Count videos by category + date
@@ -46,17 +46,17 @@ export const queries = {
       m.thumbnail, 
       c.name as category, 
       m.date as match_date,
-      l.name as league,          /* NEW */
-      co.name as country,        /* NEW */
-      m.matchview_url as video_url  /* NEW */
+      l.name as league,         
+      co.name as country,       
+      m.matchview_url as video_url
     FROM videos v
     JOIN categories c ON v.category_id = c.id
     JOIN matches m ON v.match_id = m.id
-    JOIN leagues l ON m.league_id = l.id       /* NEW */
-    JOIN countries co ON l.country_id = co.id  /* NEW */
+    JOIN leagues l ON m.league_id = l.id
+    JOIN countries co ON l.country_id = co.id
     WHERE c.name = ? AND m.date BETWEEN ? AND ?
     ORDER BY m.date ${sort}
-    LIMIT LEAST(?, 100) OFFSET ?    /* UPDATED: impose max 100 */
+    LIMIT ? OFFSET ?
   `,
 
   // Count videos by date
@@ -76,7 +76,7 @@ export const queries = {
     WHERE m.date BETWEEN ? AND ? AND c.name = ?
   `,
 
-  // Get videos by date range (with/without category)
+  // Get videos by date range
   getVideosByDateRange: (withCategory = false, sort = "DESC") => {
     if (withCategory) {
       return `
@@ -86,17 +86,17 @@ export const queries = {
           m.thumbnail, 
           c.name as category, 
           m.date as match_date,
-          l.name as league,          /* NEW */
-          co.name as country,        /* NEW */
-          m.matchview_url as video_url  /* NEW */
+          l.name as league,         
+          co.name as country,       
+          m.matchview_url as video_url
         FROM videos v
         JOIN categories c ON v.category_id = c.id
         JOIN matches m ON v.match_id = m.id
-        JOIN leagues l ON m.league_id = l.id       /* NEW */
-        JOIN countries co ON l.country_id = co.id  /* NEW */
+        JOIN leagues l ON m.league_id = l.id
+        JOIN countries co ON l.country_id = co.id
         WHERE m.date BETWEEN ? AND ? AND c.name = ?
         ORDER BY m.date ${sort}
-        LIMIT LEAST(?, 100) OFFSET ?    /* UPDATED: impose max 100 */
+        LIMIT ? OFFSET ?
       `;
     } else {
       return `
@@ -106,17 +106,17 @@ export const queries = {
           m.thumbnail, 
           c.name as category, 
           m.date as match_date,
-          l.name as league,          /* NEW */
-          co.name as country,        /* NEW */
-          m.matchview_url as video_url  /* NEW */
+          l.name as league,         
+          co.name as country,       
+          m.matchview_url as video_url
         FROM videos v
         JOIN categories c ON v.category_id = c.id
         JOIN matches m ON v.match_id = m.id
-        JOIN leagues l ON m.league_id = l.id       /* NEW */
-        JOIN countries co ON l.country_id = co.id  /* NEW */
+        JOIN leagues l ON m.league_id = l.id
+        JOIN countries co ON l.country_id = co.id
         WHERE m.date BETWEEN ? AND ?
         ORDER BY m.date ${sort}
-        LIMIT LEAST(?, 100) OFFSET ?    /* UPDATED: impose max 100 */
+        LIMIT ? OFFSET ?
       `;
     }
   },
@@ -135,16 +135,16 @@ export const queries = {
       m.thumbnail, 
       c.name as category, 
       m.date as match_date,
-      l.name as league,          /* NEW */
-      co.name as country,        /* NEW */
-      m.matchview_url as video_url  /* NEW */
+      l.name as league,         
+      co.name as country,       
+      m.matchview_url as video_url
     FROM videos v
     JOIN categories c ON v.category_id = c.id
     JOIN matches m ON v.match_id = m.id
-    JOIN leagues l ON m.league_id = l.id       /* NEW */
-    JOIN countries co ON l.country_id = co.id  /* NEW */
+    JOIN leagues l ON m.league_id = l.id
+    JOIN countries co ON l.country_id = co.id
     ORDER BY m.date ${sort}
-    LIMIT LEAST(?, 100) OFFSET ?    /* UPDATED: impose max 100 */
+    LIMIT ? OFFSET ?
   `,
 
   // Get video by ID
@@ -155,14 +155,14 @@ export const queries = {
       m.thumbnail, 
       c.name as category, 
       m.date as match_date,
-      l.name as league,          /* NEW */
-      co.name as country,        /* NEW */
-      m.matchview_url as video_url  /* NEW */
+      l.name as league,         
+      co.name as country,       
+      m.matchview_url as video_url
     FROM videos v
     JOIN categories c ON v.category_id = c.id
     JOIN matches m ON v.match_id = m.id
-    JOIN leagues l ON m.league_id = l.id       /* NEW */
-    JOIN countries co ON l.country_id = co.id  /* NEW */
+    JOIN leagues l ON m.league_id = l.id
+    JOIN countries co ON l.country_id = co.id
     WHERE v.id = ?
   `,
 
