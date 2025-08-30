@@ -1,5 +1,6 @@
 import express from "express";
 import pool from "../db/pool.js";
+import { queries } from "../db/queries.js";
 import { successResponse, errorResponse, dbErrorHandler } from "../utils/interactionResponse.js";
 
 const router = express.Router();
