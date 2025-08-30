@@ -188,7 +188,7 @@ export const queries = {
       (SELECT COUNT(*) FROM favorite_matches fm WHERE fm.subscriber_id = ?) AS favorite_count
   `,
 
-  getRecentHighlights: `
+  getRecentHighlights: (sort = "DESC") =>`
     SELECT v.id, v.title, c.name AS category, m.date AS match_date, m.thumbnail
     FROM videos v
     JOIN categories c ON v.category_id = c.id

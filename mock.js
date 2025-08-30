@@ -35,7 +35,7 @@ app.get("/", (req, res) => {
 
 // Error handler
 app.use((err, req, res, next) => {
-  console.error("Error:", err);
+  console.error("GlobalErrorHanlder says:", err);
 
   const statusCode = err.status || 500;
   res.status(statusCode).json({
