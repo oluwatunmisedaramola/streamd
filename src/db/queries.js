@@ -225,7 +225,6 @@ export const queries = {
     SELECT m.id as match_id, m.title, m.thumbnail, COUNT(f.id) as total_favorites
     FROM favorite_matches f
     JOIN matches m ON f.match_id = m.id
-    WHERE f.deleted_at IS NULL
     GROUP BY m.id
     ORDER BY total_favorites DESC
     LIMIT ?
@@ -247,7 +246,6 @@ export const queries = {
     SELECT m.id as match_id, m.title, m.thumbnail, COUNT(s.id) as total_saves
     FROM saved_matches s
     JOIN matches m ON s.match_id = m.id
-    WHERE s.deleted_at IS NULL
     GROUP BY m.id
     ORDER BY total_saves DESC
     LIMIT ?
