@@ -344,6 +344,134 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: "Video not found"
+  /videos/recent:
+    get:
+      summary: Get recent highlights (last 3 days)
+      description: Fetch football highlight videos from the past 3 days, ordered by match date.
+      parameters:
+        - in: query
+          name: page
+          schema:
+            type: integer
+            default: 1
+          description: Page number for pagination
+        - in: query
+          name: pageSize
+          schema:
+            type: integer
+            default: 10
+          description: Number of items per page
+        - in: query
+          name: sort
+          schema:
+            type: string
+            enum: [ASC, DESC]
+            default: DESC
+          description: Sort order by match date
+      responses:
+        "200":
+          description: List of recent highlights
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: integer
+                        title:
+                          type: string
+                        thumbnail:
+                          type: string
+                          nullable: true
+                        category:
+                          type: string
+                        match_date:
+                          type: string
+                          format: date-time
+                  metadata:
+                    type: object
+                    properties:
+                      total_items:
+                        type: integer
+                      page:
+                        type: integer
+                      pageSize:
+                        type: integer
+                      total_pages:
+                        type: integer
+                      has_previous:
+                        type: boolean
+                      has_next:
+                        type: boolean
+                required: [data, metadata]
+              examples:
+                recentHighlights:
+                  summary: Example with highlights
+                  value:
+                    data:
+                      - id: 12
+                        title: "Liverpool vs Chelsea Highlights"
+                        thumbnail: "https://example.com/thumbs/liv-che.png"
+                        category: "Premier League"
+                        match_date: "2025-08-27T18:00:00Z"
+                      - id: 13
+                        title: "Real Madrid vs Barcelona Highlights"
+                        thumbnail: "https://example.com/thumbs/el-clasico.png"
+                        category: "La Liga"
+                        match_date: "2025-08-26T20:00:00Z"
+                    metadata:
+                      total_items: 2
+                      page: 1
+                      pageSize: 10
+                      total_pages: 1
+                      has_previous: false
+                      has_next: false
+                emptyHighlights:
+                  summary: Example with no highlights
+                  value:
+                    data: []
+                    metadata:
+                      total_items: 0
+                      page: 1
+                      pageSize: 10
+                      total_pages: 0
+                      has_previous: false
+                      has_next: false
+  /videos/{id}/related:
+   get:
+    summary: Get related videos by category
+    parameters:
+      - in: path
+        name: id
+        required: true
+        schema:
+          type: integer
+      - in: query
+        name: limit
+        schema:
+          type: integer
+          default: 5
+    responses:
+      "200":
+        description: Related videos
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                data:
+                  type: array
+                  items:
+                    $ref: "#/components/schemas/Video"
+      "404":
+        description: No related videos found
+                    
+              
 
   /categories:
     get:
@@ -376,6 +504,392 @@ paths:
                 $ref: "#/components/schemas/Error"
               example:
                 error: "Unexpected database error."
+  /interactions/saved-matches:
+    post:
+      summary: Save a match for a subscriber
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InteractionRequest"
+            example:
+              subscriber_id: 101
+              match_id: 55
+      responses:
+        "200":
+          description: Match saved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              example:
+                success: true
+                message: "Match saved successfully."
+                data: null
+        "400":
+          description: Missing subscriber_id or match_id
+          content:
+            application/json:
+              example:
+                success: false
+                message: "subscriber_id is required"
+                data: null
+    delete:
+      summary: Remove a saved match for a subscriber
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InteractionRequest"
+            example:
+              subscriber_id: 101
+              match_id: 55
+      responses:
+        "200":
+          description: Match removed from saved list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              example:
+                success: true
+                message: "Match removed from saved."
+                data: null
+        "404":
+          description: Match not found in saved list
+          content:
+            application/json:
+              example:
+                success: false
+                message: "Saved match not found"
+                data: null
+    get:
+      summary: List all saved matches for a subscriber
+      parameters:
+        - in: query
+          name: subscriber_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of saved matches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              example:
+                success: true
+                message: "Saved matches retrieved."
+                data:
+                  - id: 1
+                    match_id: 55
+                    subscriber_id: 101
+                    created_at: "2025-08-01T10:00:00Z"
+        "400":
+          description: Missing subscriber_id
+          content:
+            application/json:
+              example:
+                success: false
+                message: "subscriber_id is required"
+                data: null
+
+  /interactions/loved-matches:
+    post:
+      summary: Love a match for a subscriber
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InteractionRequest"
+            example:
+              subscriber_id: 101
+              match_id: 77
+      responses:
+        "200":
+          description: Match loved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              example:
+                success: true
+                message: "Match loved successfully."
+                data: null
+        "400":
+          description: Missing subscriber_id or match_id
+          content:
+            application/json:
+              example:
+                success: false
+                message: "match_id is required"
+                data: null
+    delete:
+      summary: Remove love (soft delete) for a match
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InteractionRequest"
+            example:
+              subscriber_id: 101
+              match_id: 77
+      responses:
+        "200":
+          description: Love removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              example:
+                success: true
+                message: "Love removed."
+                data: null
+        "404":
+          description: Loved match not found
+          content:
+            application/json:
+              example:
+                success: false
+                message: "Loved match not found"
+                data: null
+    get:
+      summary: List all loved matches for a subscriber
+      parameters:
+        - in: query
+          name: subscriber_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of loved matches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              example:
+                success: true
+                message: "Loved matches retrieved."
+                data:
+                  - id: 1
+                    match_id: 77
+                    subscriber_id: 101
+                    created_at: "2025-08-02T12:00:00Z"
+                    deleted_at: null
+        "400":
+          description: Missing subscriber_id
+          content:
+            application/json:
+              example:
+                success: false
+                message: "subscriber_id is required"
+                data: null
+
+  /interactions/favorite-matches:
+    post:
+      summary: Favorite a match for a subscriber
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InteractionRequest"
+            example:
+              subscriber_id: 101
+              match_id: 99
+      responses:
+        "200":
+          description: Match favorited successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              example:
+                success: true
+                message: "Match favorited successfully."
+                data: null
+        "400":
+          description: Missing subscriber_id or match_id
+          content:
+            application/json:
+              example:
+                success: false
+                message: "subscriber_id is required"
+                data: null
+    delete:
+      summary: Remove a favorite match for a subscriber
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InteractionRequest"
+            example:
+              subscriber_id: 101
+              match_id: 99
+      responses:
+        "200":
+          description: Favorite removed successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              example:
+                success: true
+                message: "Favorite removed."
+                data: null
+        "404":
+          description: Favorite not found
+          content:
+            application/json:
+              example:
+                success: false
+                message: "Favorite match not found"
+                data: null
+    get:
+      summary: List all favorite matches for a subscriber
+      parameters:
+        - in: query
+          name: subscriber_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: List of favorite matches
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              example:
+                success: true
+                message: "Favorite matches retrieved."
+                data:
+                  - id: 1
+                    match_id: 99
+                    subscriber_id: 101
+                    created_at: "2025-08-03T14:00:00Z"
+        "400":
+          description: Missing subscriber_id
+          content:
+            application/json:
+              example:
+                success: false
+                message: "subscriber_id is required"
+                data: null
+
+  /interactions/matches/{match_id}/stats:
+    get:
+      summary: Get stats (saved, loved, favorited counts) for a specific match
+      parameters:
+        - in: path
+          name: match_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Stats for the given match
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MatchStatsResponse"
+              example:
+                success: true
+                message: "Stats for match 55 retrieved."
+                data:
+                  saved_count: 12
+                  loved_count: 7
+                  favorite_count: 5
+        "404":
+          description: Match not found
+          content:
+            application/json:
+              example:
+                success: false
+                message: "Match not found"
+                data: null
+
+  /interactions/subscribers/{subscriber_id}/stats:
+    get:
+      summary: Get stats (saved, loved, favorited counts) for a specific subscriber
+      parameters:
+        - in: path
+          name: subscriber_id
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Stats for the given subscriber
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SubscriberStatsResponse"
+              example:
+                success: true
+                message: "Stats for subscriber 101 retrieved."
+                data:
+                  saved_count: 3
+                  loved_count: 2
+                  favorite_count: 1
+        "404":
+          description: Subscriber not found
+          content:
+            application/json:
+              example:
+                success: false
+                message: "Subscriber not found"
+                data: null
+
+  /interactions/top:
+    get:
+      summary: Get top matches by interaction type
+      parameters:
+        - in: query
+          name: type
+          required: true
+          schema:
+            type: string
+            enum: [favorite, loved, saved]
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 10
+      responses:
+        "200":
+          description: Top matches by selected type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              example:
+                success: true
+                message: "Top loved matches retrieved."
+                data:
+                  - match_id: 55
+                    loved_count: 20
+                  - match_id: 77
+                    loved_count: 15
+                  - match_id: 88
+                    loved_count: 10
+        "400":
+          description: Invalid type
+          content:
+            application/json:
+              example:
+                success: false
+                message: "Invalid type. Must be one of favorite, loved, saved"
+                data: null
+            
 
 components:
   schemas:
@@ -440,4 +954,61 @@ components:
       type: object
       properties:
         error: { type: string }
-      required: [error]
+      required: [error] 
+
+    InteractionRequest:
+      type: object
+      required:
+        - subscriber_id
+        - match_id
+      properties:
+        subscriber_id:
+          type: integer
+          description: ID of the subscriber
+        match_id:
+          type: integer
+          description: ID of the match
+
+    ApiResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          nullable: true
+
+    MatchStatsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            saved_count:
+              type: integer
+            loved_count:
+              type: integer
+            favorite_count:
+              type: integer
+
+    SubscriberStatsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+        data:
+          type: object
+          properties:
+            saved_count:
+              type: integer
+            loved_count:
+              type: integer
+            favorite_count:
+              type: integer  

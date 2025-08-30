@@ -220,4 +220,54 @@ router.get("/", async (req, res, next) => {
   }
 });
 
+// GET /api/videos/recent
+router.get("/recent", async (req, res, next) => {
+  const { page = 1, pageSize = 10, sort = "DESC" } = req.query;
+
+  try {
+    // Count
+    const [[{ total }]] = await pool.query(queries.countRecentHighlights);
+
+    // If no highlights, return empty array with metadata
+    if (total === 0) {
+      return successResponse(res, [], buildMetadata(0, Number(page), Number(pageSize)));
+    }
+
+    // Fetch recent highlights
+    const [rows] = await pool.query(queries.getRecentHighlights(sort), [
+      Number(pageSize),
+      (page - 1) * pageSize,
+    ]);
+
+    return successResponse(
+      res,
+      rows,
+      buildMetadata(total, Number(page), Number(pageSize))
+    );
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+// GET /api/videos/:id/related
+router.get("/:id/related", async (req, res, next) => {
+  try {
+    const { id } = req.params;
+    const limit = parseInt(req.query.limit, 10) || 5;
+
+    const [related] = await pool.query(queries.getRelatedVideos, [id, id, limit]);
+
+    if (!related.length) {
+      return res.status(404).json({ error: `No related videos found for video ${id}` });
+    }
+
+    res.json({ data: related });
+  } catch (err) {
+    next(err);
+  }
+});
+
+
+
 export default router;

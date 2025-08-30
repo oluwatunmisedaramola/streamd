@@ -8,6 +8,7 @@ import { fileURLToPath } from "url";
 
 import categoriesRouter from "./src/routes/categories.js";
 import videosRouter from "./src/routes/videos.js";
+import interactionsRouter from "./src/routes/interactions.js";
 
 dotenv.config();
 
@@ -25,6 +26,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 // Routes
 app.use("/api/categories", categoriesRouter);
 app.use("/api/videos", videosRouter);
+app.use("/api/interactions", interactionsRouter);
 
 // Health check
 app.get("/", (req, res) => {
@@ -34,7 +36,12 @@ app.get("/", (req, res) => {
 // Error handler
 app.use((err, req, res, next) => {
   console.error("Error:", err);
-  res.status(500).json({ error: "Internal Server Error" });
+
+  const statusCode = err.status || 500;
+  res.status(statusCode).json({
+    success: false,
+    message: err.message || "Internal Server Error",
+  });
 });
 
 const PORT = process.env.PORT || 3000;
