@@ -194,9 +194,8 @@ router.get("/", async (req, res, next) => {
 /* -------------------------
    DYNAMIC ROUTES LAST
 ------------------------- */
-
 // GET /api/videos/:id/related
-router.get("/:id/related", async (req, res, next) => {
+router.get("/:id/related", async (req, res) => {
   try {
     const { id } = req.params;
     const limit = parseInt(req.query.limit, 10) || 5;
@@ -204,12 +203,12 @@ router.get("/:id/related", async (req, res, next) => {
     const [related] = await pool.query(queries.getRelatedVideos, [id, id, limit]);
 
     if (!related.length) {
-      return res.status(404).json({ error: `No related videos found for video ${id}` });
+      return errorResponse(res, 404, `No related videos found for video ${id}`);
     }
 
-    res.json({ data: related });
+    return successResponse(res, related);
   } catch (err) {
-    next(err);
+    return errorResponse(res, 500, "An unexpected error occurred while fetching related videos.");
   }
 });
 

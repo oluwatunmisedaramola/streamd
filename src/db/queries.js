@@ -205,12 +205,21 @@ export const queries = {
     WHERE m.date >= DATE_SUB(NOW(), INTERVAL 3 DAY)
   `,
 
-  // Get related videos by category (thumbnail comes from matches table)
-   getRelatedVideos: `
-  SELECT v.id, v.title, c.name AS category, m.date AS match_date, m.thumbnail
+getRelatedVideos: `
+  SELECT 
+    v.id,
+    v.title,
+    c.name AS category,
+    m.date AS match_date,
+    m.thumbnail,
+    m.matchview_url AS video_url,
+    l.name AS league,
+    co.name AS country
   FROM videos v
   JOIN categories c ON v.category_id = c.id
   JOIN matches m ON v.match_id = m.id
+  JOIN leagues l ON m.league_id = l.id
+  JOIN countries co ON l.country_id = co.id
   WHERE v.category_id = (
     SELECT category_id FROM videos WHERE id = ?
   )
@@ -218,6 +227,7 @@ export const queries = {
   ORDER BY m.date DESC
   LIMIT ?
 `,
+
 
 
   // Get top favorited matches
