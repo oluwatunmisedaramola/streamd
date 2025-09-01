@@ -230,17 +230,25 @@ router.get("/subscribers/:subscriber_id/stats", async (req, res) => {
   }
 });
 
-router.get("/top", async (req, res) => {
-  const { type, limit = 10 } = req.query;
 
-  // Validate type
-  if (!["favorite", "loved", "saved"].includes(type)) {
-    return errorResponse(res, "Invalid type. Must be 'favorite', 'loved', or 'saved'.", 400);
-  }
+router.get("/top", async (req, res) => {
+  const limit = 10; // default limit, no query param needed
 
   try {
+    // 1. Use centralized totals query
+    const [counts] = await pool.query(queries.getInteractionTotals);
+
+    // 2. Pick winner
+    let winner = counts[0];
+    for (const row of counts) {
+      if (row.total > winner.total) {
+        winner = row;
+      }
+    }
+
+    // 3. Choose query dynamically
     let query;
-    switch (type) {
+    switch (winner.type) {
       case "favorite":
         query = queries.getTopFavoritedMatches;
         break;
@@ -250,12 +258,21 @@ router.get("/top", async (req, res) => {
       case "saved":
         query = queries.getTopSavedMatches;
         break;
+      default:
+        return successResponse(res, { rows: [] }, "No interactions found.");
     }
 
-    const [rows] = await pool.query(query, [parseInt(limit, 10)]);
-    return successResponse(res, rows, `Top ${limit} ${type} matches retrieved successfully.`);
+    // 4. Execute and return
+    const [rows] = await pool.query(query, [limit]);
+
+    return successResponse(
+      res,
+      { type: winner.type, rows },
+      `Top ${limit} ${winner.type} matches retrieved successfully.`
+    );
+
   } catch (err) {
-    return dbErrorHandler(res, err, `fetch top ${type} matches`);
+    return dbErrorHandler(res, err, "fetch top matches");
   }
 });
 

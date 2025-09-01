@@ -1174,7 +1174,43 @@ components:
         message:
           type: string
         data:
+          type: object
           nullable: true
+          properties:
+            type:
+              type: string
+              enum: [favorite, loved, saved]
+              description: The winning interaction type
+            rows:
+              type: array
+              items:
+                $ref: "#/components/schemas/Match"
+
+    Match:
+      type: object
+      properties:
+        match_id:
+          type: integer
+        title:
+          type: string
+        thumbnail:
+          type: string
+          format: uri
+        match_date:
+          type: string
+          format: date
+        video_url:
+          type: string
+          format: uri
+        category:
+          type: string
+        league:
+          type: string
+        country:
+          type: string
+        total:
+          type: integer
+          description: Total number of interactions of the winning type
 
     MatchStatsResponse:
       type: object
