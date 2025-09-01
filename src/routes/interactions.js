@@ -259,15 +259,15 @@ router.get("/top", async (req, res) => {
         query = queries.getTopSavedMatches;
         break;
       default:
-        return successResponse(res, { rows: [] }, "No interactions found.");
+        return successResponse(res, { best_matches: [] }, "No interactions found.");
     }
 
     // 4. Execute and return
-    const [rows] = await pool.query(query, [limit]);
+    const [best_matches] = await pool.query(query, [limit]);
 
     return successResponse(
       res,
-      { type: winner.type, rows },
+      { type: winner.type, best_matches },
       `Top ${limit} ${winner.type} matches retrieved successfully.`
     );
 
