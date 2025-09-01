@@ -848,47 +848,52 @@ paths:
                 message: "Subscriber not found"
                 data: null
 
-  /interactions/top:
-    get:
-      summary: Get top matches by interaction type
-      parameters:
-        - in: query
-          name: type
-          required: true
-          schema:
-            type: string
-            enum: [favorite, loved, saved]
-        - in: query
-          name: limit
-          required: false
-          schema:
-            type: integer
-            default: 10
-      responses:
-        "200":
-          description: Top matches by selected type
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/ApiResponse"
-              example:
-                success: true
-                message: "Top loved matches retrieved."
-                data:
-                  - match_id: 55
-                    loved_count: 20
-                  - match_id: 77
-                    loved_count: 15
-                  - match_id: 88
-                    loved_count: 10
-        "400":
-          description: Invalid type
-          content:
-            application/json:
-              example:
-                success: false
-                message: "Invalid type. Must be one of favorite, loved, saved"
-                data: null
+/interactions/top:
+  get:
+    summary: Get top matches by most popular interaction type
+    description: >
+      Returns the top matches based on the interaction type 
+      (favorite, loved, or saved) that currently has the highest overall count.  
+      The API automatically decides the winner type and includes it in the response.
+    responses:
+      "200":
+        description: Top matches for the most interacted type
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApiResponse"
+            example:
+              success: true
+              message: "Top 10 favorite matches retrieved successfully."
+              data:
+                type: "favorite"
+                rows:
+                  - match_id: 101
+                    title: "Barcelona vs Real Madrid"
+                    thumbnail: "https://cdn.example.com/thumbnails/match101.jpg"
+                    match_date: "2025-05-10"
+                    video_url: "https://cdn.example.com/videos/match101.mp4"
+                    category: "Highlights"
+                    league: "La Liga"
+                    country: "Spain"
+                    total: 42
+                  - match_id: 99
+                    title: "Arsenal vs Chelsea"
+                    thumbnail: "https://cdn.example.com/thumbnails/match99.jpg"
+                    match_date: "2025-04-20"
+                    video_url: "https://cdn.example.com/videos/match99.mp4"
+                    category: "Full Match"
+                    league: "Premier League"
+                    country: "England"
+                    total: 38
+      "500":
+        description: Server error
+        content:
+          application/json:
+            example:
+              success: false
+              message: "Database error while fetching top matches"
+              data: null
   /auth/login:
     post:
       summary: Login or request subscription link
