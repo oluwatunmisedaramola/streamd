@@ -889,6 +889,203 @@ paths:
                 success: false
                 message: "Invalid type. Must be one of favorite, loved, saved"
                 data: null
+  /auth/login:
+    post:
+      summary: Login or request subscription link
+      description: >
+        User enters MSISDN.  
+        If already subscribed and active → grants access with session token.  
+        Otherwise returns telco-specific subscription link.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [msisdn]
+              properties:
+                msisdn:
+                  type: string
+                  example: "+2348012345678"
+      responses:
+        "200":
+          description: Login success or subscription link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              examples:
+                ActiveSubscriber:
+                  summary: Active subscriber
+                  value:
+                    success: true
+                    message: "Access granted"
+                    data:
+                      status: active
+                      msisdn: "2348012345678"
+                      start_time: "2025-08-29T15:00:00.000Z"
+                      end_time: "2025-08-30T15:00:00.000Z"
+                      session_token: "123e4567-e89b-12d3-a456-426614174000"
+                      session_expires_at: "2025-08-30T15:00:00.000Z"
+                      is_first_time: false
+                      remaining_seconds: 86350
+                    server_time: "2025-08-29T16:42:15.123Z"
+                NewSubscriber:
+                  summary: New subscriber needs link
+                  value:
+                    success: true
+                    message: "Subscription required"
+                    data:
+                      status: pending
+                      carrier: MTN
+                      subscription_link: "https://mtn.example.com/subscribe"
+                      msisdn: "2348012345678"
+                      is_first_time: true
+                      remaining_seconds: 0
+                    server_time: "2025-08-29T16:42:15.123Z"
+
+  /auth/callback:
+    get:
+      summary: Telco callback after subscription
+      description: >
+        Telco redirects back with MSISDN and carrier.  
+        Marks subscriber as active, creates session, and returns session token.
+      parameters:
+        - in: query
+          name: msisdn
+          schema:
+            type: string
+          required: true
+          example: "2348012345678"
+        - in: query
+          name: carrier
+          schema:
+            type: string
+          required: true
+          example: "MTN"
+      responses:
+        "200":
+          description: Subscription verified
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              example:
+                success: true
+                message: "Subscription verified"
+                data:
+                  status: active
+                  msisdn: "2348012345678"
+                  start_time: "2025-08-29T15:00:00.000Z"
+                  end_time: "2025-08-30T15:00:00.000Z"
+                  session_token: "123e4567-e89b-12d3-a456-426614174000"
+                  session_expires_at: "2025-08-30T15:00:00.000Z"
+                  is_first_time: false
+                  remaining_seconds: 86350
+                server_time: "2025-08-29T16:43:00.000Z"
+
+  /auth/status:
+    get:
+      summary: Check session and subscription status
+      description: >
+        Validates session token and returns subscription status + expiry times.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Status response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              examples:
+                ValidSession:
+                  summary: Active subscription and session
+                  value:
+                    success: true
+                    message: "Session valid"
+                    data:
+                      status: active
+                      msisdn: "2348012345678"
+                      start_time: "2025-08-29T15:00:00.000Z"
+                      end_time: "2025-08-30T15:00:00.000Z"
+                      session_token: "123e4567-e89b-12d3-a456-426614174000"
+                      session_expires_at: "2025-08-30T15:00:00.000Z"
+                      is_first_time: false
+                      remaining_seconds: 7200
+                    server_time: "2025-08-29T16:45:00.000Z"
+                ExpiredSession:
+                  summary: Expired subscription
+                  value:
+                    success: true
+                    message: "Subscription expired"
+                    data:
+                      status: expired
+                      msisdn: "2348012345678"
+                      start_time: "2025-08-28T15:00:00.000Z"
+                      end_time: "2025-08-29T15:00:00.000Z"
+                      session_token: "123e4567-e89b-12d3-a456-426614174000"
+                      session_expires_at: "2025-08-30T15:00:00.000Z"
+                      is_first_time: false
+                      remaining_seconds: 0
+                    server_time: "2025-08-29T16:45:00.000Z"
+
+  /auth/webhook:
+    post:
+      summary: Telco webhook subscription update
+      description: >
+        Receives subscription status updates directly from telco.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [msisdn, status]
+              properties:
+                msisdn:
+                  type: string
+                  example: "2348012345678"
+                status:
+                  type: string
+                  enum: [active, expired, pending, cancelled]
+                  example: "active"
+      responses:
+        "200":
+          description: Webhook processed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              example:
+                success: true
+                message: "Subscriber updated via webhook"
+                data:
+                  status: active
+                  msisdn: "2348012345678"
+                  end_time: "2025-08-30T15:00:00.000Z"
+                  remaining_seconds: 86350
+                server_time: "2025-08-29T16:47:00.000Z"
+
+  /auth/logout:
+    post:
+      summary: Logout subscriber
+      description: >
+        Invalidates the session token.
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: Logout success
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApiResponse"
+              example:
+                success: true
+                message: "Logged out successfully"
+                data: {}
+                server_time: "2025-08-29T16:49:00.000Z"              
             
 
 components:

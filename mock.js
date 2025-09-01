@@ -9,6 +9,7 @@ import { fileURLToPath } from "url";
 import categoriesRouter from "./src/routes/categories.js";
 import videosRouter from "./src/routes/videos.js";
 import interactionsRouter from "./src/routes/interactions.js";
+import authRouter from "./src/routes/auth.js";
 
 dotenv.config();
 
@@ -27,6 +28,7 @@ app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 app.use("/api/categories", categoriesRouter);
 app.use("/api/videos", videosRouter);
 app.use("/api/interactions", interactionsRouter);
+app.use("/api/auth",authRouter );
 
 // Health check
 app.get("/", (req, res) => {
