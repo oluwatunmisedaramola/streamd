@@ -848,8 +848,8 @@ paths:
                 message: "Subscriber not found"
                 data: null
 
-/interactions/top:
-  get:
+  /interactions/top:
+   get:
     summary: Get top matches by most popular interaction type
     description: >
       Returns the top matches based on the interaction type 
