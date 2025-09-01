@@ -189,10 +189,20 @@ export const queries = {
   `,
 
   getRecentHighlights: (sort = "DESC") =>`
-    SELECT v.id, v.title, c.name AS category, m.date AS match_date, m.thumbnail
+    SELECT 
+     v.id, 
+     v.title, 
+     c.name AS category, 
+     m.date AS match_date, 
+     m.thumbnail,
+     v.embed_code AS video_url, 
+     l.name AS league,
+     co.name AS country
     FROM videos v
     JOIN categories c ON v.category_id = c.id
     JOIN matches m ON v.match_id = m.id
+    JOIN leagues l ON m.league_id = l.id
+    JOIN countries co ON l.country_id = co.id
     WHERE m.date >= DATE_SUB(NOW(), INTERVAL 3 DAY)
     ORDER BY m.date DESC
     LIMIT ? OFFSET ?
