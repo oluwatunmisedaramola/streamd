@@ -18,7 +18,7 @@ export const queries = {
       m.date as match_date,
       l.name as league,         
       co.name as country,       
-      m.matchview_url as video_url
+      v.embed_code as video_url  -- ✅ updated from m.matchview_url
     FROM videos v
     JOIN categories c ON v.category_id = c.id
     JOIN matches m ON v.match_id = m.id
@@ -48,7 +48,7 @@ export const queries = {
       m.date as match_date,
       l.name as league,         
       co.name as country,       
-      m.matchview_url as video_url
+      v.embed_code as video_url  -- ✅ updated from m.matchview_url
     FROM videos v
     JOIN categories c ON v.category_id = c.id
     JOIN matches m ON v.match_id = m.id
@@ -88,7 +88,7 @@ export const queries = {
           m.date as match_date,
           l.name as league,         
           co.name as country,       
-          m.matchview_url as video_url
+          v.embed_code as video_url  -- ✅ updated from m.matchview_url
         FROM videos v
         JOIN categories c ON v.category_id = c.id
         JOIN matches m ON v.match_id = m.id
@@ -108,7 +108,7 @@ export const queries = {
           m.date as match_date,
           l.name as league,         
           co.name as country,       
-          m.matchview_url as video_url
+          v.embed_code as video_url  -- ✅ updated from m.matchview_url
         FROM videos v
         JOIN categories c ON v.category_id = c.id
         JOIN matches m ON v.match_id = m.id
@@ -137,7 +137,7 @@ export const queries = {
       m.date as match_date,
       l.name as league,         
       co.name as country,       
-      m.matchview_url as video_url
+      v.embed_code as video_url  -- ✅ updated from m.matchview_url
     FROM videos v
     JOIN categories c ON v.category_id = c.id
     JOIN matches m ON v.match_id = m.id
@@ -157,7 +157,7 @@ export const queries = {
       m.date as match_date,
       l.name as league,         
       co.name as country,       
-      m.matchview_url as video_url
+      v.embed_code as video_url  -- ✅ updated from m.matchview_url
     FROM videos v
     JOIN categories c ON v.category_id = c.id
     JOIN matches m ON v.match_id = m.id
@@ -205,106 +205,26 @@ export const queries = {
     WHERE m.date >= DATE_SUB(NOW(), INTERVAL 3 DAY)
   `,
 
-getRelatedVideos: `
-  SELECT 
-    v.id,
-    v.title,
-    c.name AS category,
-    m.date AS match_date,
-    m.thumbnail,
-    m.matchview_url AS video_url,
-    l.name AS league,
-    co.name AS country
-  FROM videos v
-  JOIN categories c ON v.category_id = c.id
-  JOIN matches m ON v.match_id = m.id
-  JOIN leagues l ON m.league_id = l.id
-  JOIN countries co ON l.country_id = co.id
-  WHERE v.category_id = (
-    SELECT category_id FROM videos WHERE id = ?
-  )
-  AND v.id <> ?
-  ORDER BY m.date DESC
-  LIMIT ?
-`,
-
-
-
-  // Get top favorited matches
-  getTopFavoritedMatches: `
-    SELECT m.id as match_id, m.title, m.thumbnail, COUNT(f.id) as total_favorites
-    FROM favorite_matches f
-    JOIN matches m ON f.match_id = m.id
-    GROUP BY m.id
-    ORDER BY total_favorites DESC
-    LIMIT ?
-  `,
-
-  // Get top loved matches
-  getTopLovedMatches: `
-    SELECT m.id as match_id, m.title, m.thumbnail, COUNT(l.id) as total_loves
-    FROM loved_matches l
-    JOIN matches m ON l.match_id = m.id
-    WHERE l.deleted_at IS NULL
-    GROUP BY m.id
-    ORDER BY total_loves DESC
-    LIMIT ?
-  `,
-
-  // Get top saved matches
-  getTopSavedMatches: `
-    SELECT m.id as match_id, m.title, m.thumbnail, COUNT(s.id) as total_saves
-    FROM saved_matches s
-    JOIN matches m ON s.match_id = m.id
-    GROUP BY m.id
-    ORDER BY total_saves DESC
-    LIMIT ?
-  `,
-
-  getSubscriberByMsisdn: `
-    SELECT * 
-    FROM subscribers 
-    WHERE msisdn=? 
-    LIMIT 1
-  `,
-
-  insertSubscriber: `
-    INSERT INTO subscribers (msisdn, status, start_time, end_time, amount) 
-    VALUES (?, 'active', NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), ?)
-  `,
-
-  updateSubscriber: `
-    UPDATE subscribers 
-    SET status='active', 
-        start_time=NOW(), 
-        end_time=DATE_ADD(NOW(), INTERVAL 1 DAY), 
-        amount=?, 
-        updated_at=NOW()
-    WHERE msisdn=?
-  `,
-
-  getSubscriptionLinkByCarrier: `
-    SELECT link 
-    FROM subscription_links sl 
-    JOIN carriers c ON sl.carrier_id = c.id
-    WHERE c.name=? 
-    LIMIT 1
-  `,
-
-  createSession: `
-    INSERT INTO sessions (subscriber_id, token, expires_at) 
-    VALUES (?, ?, ?)
-  `,
-
-  getSessionWithSubscriber: `
+  getRelatedVideos: `
     SELECT 
-      s.token, 
-      s.expires_at, 
-      sub.* 
-    FROM sessions s 
-    JOIN subscribers sub ON s.subscriber_id=sub.id 
-    WHERE s.token=? 
-    LIMIT 1
+      v.id,
+      v.title,
+      c.name AS category,
+      m.date AS match_date,
+      m.thumbnail,
+      v.embed_code AS video_url,  -- ✅ updated from m.matchview_url
+      l.name AS league,
+      co.name AS country
+    FROM videos v
+    JOIN categories c ON v.category_id = c.id
+    JOIN matches m ON v.match_id = m.id
+    JOIN leagues l ON m.league_id = l.id
+    JOIN countries co ON l.country_id = co.id
+    WHERE v.category_id = (
+      SELECT category_id FROM videos WHERE id = ?
+    )
+    AND v.id <> ?
+    ORDER BY m.date DESC
+    LIMIT ?
   `,
-
-};
+}
