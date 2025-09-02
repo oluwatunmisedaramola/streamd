@@ -918,7 +918,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponse"
+                $ref: "#/components/schemas/AuthResponse"
               examples:
                 ActiveSubscriber:
                   summary: Active subscriber
@@ -948,6 +948,24 @@ paths:
                       is_first_time: true
                       remaining_seconds: 0
                     server_time: "2025-08-29T16:42:15.123Z"
+        "400":
+          description: Invalid request (bad MSISDN format, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthErrorResponse"
+              example:
+                success: false
+                message: "Invalid MSISDN format"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthErrorResponse"
+              example:
+                success: false
+                message: "Something went wrong"
 
   /auth/callback:
     get:
@@ -974,7 +992,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponse"
+                $ref: "#/components/schemas/AuthResponse"
               example:
                 success: true
                 message: "Subscription verified"
@@ -988,6 +1006,21 @@ paths:
                   is_first_time: false
                   remaining_seconds: 86350
                 server_time: "2025-08-29T16:43:00.000Z"
+        "400":
+          description: Missing query params
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthErrorResponse"
+              example:
+                success: false
+                message: "Missing msisdn or carrier"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthErrorResponse"
 
   /auth/status:
     get:
@@ -1002,7 +1035,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponse"
+                $ref: "#/components/schemas/AuthResponse"
               examples:
                 ValidSession:
                   summary: Active subscription and session
@@ -1034,6 +1067,21 @@ paths:
                       is_first_time: false
                       remaining_seconds: 0
                     server_time: "2025-08-29T16:45:00.000Z"
+        "401":
+          description: Invalid or expired session token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthErrorResponse"
+              example:
+                success: false
+                message: "Session expired"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthErrorResponse"
 
   /auth/webhook:
     post:
@@ -1061,7 +1109,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponse"
+                $ref: "#/components/schemas/AuthResponse"
               example:
                 success: true
                 message: "Subscriber updated via webhook"
@@ -1071,6 +1119,21 @@ paths:
                   end_time: "2025-08-30T15:00:00.000Z"
                   remaining_seconds: 86350
                 server_time: "2025-08-29T16:47:00.000Z"
+        "400":
+          description: Bad webhook payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthErrorResponse"
+              example:
+                success: false
+                message: "Missing required fields"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthErrorResponse"
 
   /auth/logout:
     post:
@@ -1085,15 +1148,35 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ApiResponse"
+                $ref: "#/components/schemas/AuthResponse"
               example:
                 success: true
                 message: "Logged out successfully"
                 data: {}
-                server_time: "2025-08-29T16:49:00.000Z"              
+                server_time: "2025-08-29T16:49:00.000Z"
+        "401":
+          description: Invalid session token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthErrorResponse"
+              example:
+                success: false
+                message: "Invalid or expired session"
+        "500":
+          description: Server error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthErrorResponse"             
             
 
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: UUID
   schemas:
     Video:
       type: object
@@ -1250,3 +1333,29 @@ components:
               type: integer
             favorite_count:
               type: integer  
+    AuthResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Access granted"
+        data:
+          type: object
+          additionalProperties: true
+        server_time:
+          type: string
+          format: date-time
+          example: "2025-08-29T16:42:15.123Z"
+
+    AuthErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Something went wrong"          
