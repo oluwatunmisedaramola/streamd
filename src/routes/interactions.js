@@ -1,5 +1,5 @@
 import express from "express";
-import pool from "../db/pool.js";
+import { safeQuery } from "../db/pool.js"; // ⚡ CHANGED: replaced pool import
 import { queries } from "../db/queries.js";
 import { successResponse, errorResponse, dbErrorHandler } from "../utils/interactionResponse.js";
 
@@ -16,7 +16,7 @@ router.post("/saved-matches", async (req, res) => {
   if (!match_id) return errorResponse(res, "match_id is required", 400);
 
   try {
-    await pool.query(
+    await safeQuery( // ⚡ CHANGED
       `INSERT INTO saved_matches (subscriber_id, match_id) VALUES (?, ?)`,
       [subscriber_id, match_id]
     );
@@ -33,7 +33,7 @@ router.delete("/saved-matches", async (req, res) => {
   if (!match_id) return errorResponse(res, "match_id is required", 400);
 
   try {
-    const [result] = await pool.query(
+    const [result] = await safeQuery( // ⚡ CHANGED
       `DELETE FROM saved_matches WHERE subscriber_id = ? AND match_id = ?`,
       [subscriber_id, match_id]
     );
@@ -52,7 +52,7 @@ router.get("/saved-matches", async (req, res) => {
   if (!subscriber_id) return errorResponse(res, "subscriber_id is required", 400);
 
   try {
-    const [rows] = await pool.query(
+    const [rows] = await safeQuery( // ⚡ CHANGED
       `SELECT * FROM saved_matches WHERE subscriber_id = ?`,
       [subscriber_id]
     );
@@ -73,7 +73,7 @@ router.post("/loved-matches", async (req, res) => {
   if (!match_id) return errorResponse(res, "match_id is required", 400);
 
   try {
-    await pool.query(
+    await safeQuery( // ⚡ CHANGED
       `INSERT INTO loved_matches (subscriber_id, match_id) VALUES (?, ?)`,
       [subscriber_id, match_id]
     );
@@ -90,7 +90,7 @@ router.delete("/loved-matches", async (req, res) => {
   if (!match_id) return errorResponse(res, "match_id is required", 400);
 
   try {
-    const [result] = await pool.query(
+    const [result] = await safeQuery( // ⚡ CHANGED
       `UPDATE loved_matches
        SET deleted_at = CURRENT_TIMESTAMP
        WHERE subscriber_id = ? AND match_id = ? AND deleted_at IS NULL`,
@@ -111,7 +111,7 @@ router.get("/loved-matches", async (req, res) => {
   if (!subscriber_id) return errorResponse(res, "subscriber_id is required", 400);
 
   try {
-    const [rows] = await pool.query(
+    const [rows] = await safeQuery( // ⚡ CHANGED
       `SELECT * FROM loved_matches WHERE subscriber_id = ? AND deleted_at IS NULL`,
       [subscriber_id]
     );
@@ -132,7 +132,7 @@ router.post("/favorite-matches", async (req, res) => {
   if (!match_id) return errorResponse(res, "match_id is required", 400);
 
   try {
-    await pool.query(
+    await safeQuery( // ⚡ CHANGED
       `INSERT INTO favorite_matches (subscriber_id, match_id) VALUES (?, ?)`,
       [subscriber_id, match_id]
     );
@@ -149,7 +149,7 @@ router.delete("/favorite-matches", async (req, res) => {
   if (!match_id) return errorResponse(res, "match_id is required", 400);
 
   try {
-    const [result] = await pool.query(
+    const [result] = await safeQuery( // ⚡ CHANGED
       `DELETE FROM favorite_matches WHERE subscriber_id = ? AND match_id = ?`,
       [subscriber_id, match_id]
     );
@@ -168,7 +168,7 @@ router.get("/favorite-matches", async (req, res) => {
   if (!subscriber_id) return errorResponse(res, "subscriber_id is required", 400);
 
   try {
-    const [rows] = await pool.query(
+    const [rows] = await safeQuery( // ⚡ CHANGED
       `SELECT * FROM favorite_matches WHERE subscriber_id = ?`,
       [subscriber_id]
     );
@@ -180,7 +180,6 @@ router.get("/favorite-matches", async (req, res) => {
 
 /**
  * 📊 Get stats for a match
- * GET /api/interactions/matches/:match_id/stats
  */
 router.get("/matches/:match_id/stats", async (req, res) => {
   const { match_id } = req.params;
@@ -190,7 +189,7 @@ router.get("/matches/:match_id/stats", async (req, res) => {
   }
 
   try {
-    const [rows] = await pool.query(queries.getMatchStats, [match_id, match_id, match_id]);
+    const [rows] = await safeQuery(queries.getMatchStats, [match_id, match_id, match_id]); // ⚡ CHANGED
 
     if (!rows || rows.length === 0) {
       return errorResponse(res, "No stats found for this match", 404);
@@ -204,7 +203,6 @@ router.get("/matches/:match_id/stats", async (req, res) => {
 
 /**
  * 📊 Get stats for a subscriber
- * GET /api/interactions/subscribers/:subscriber_id/stats
  */
 router.get("/subscribers/:subscriber_id/stats", async (req, res) => {
   const { subscriber_id } = req.params;
@@ -214,7 +212,7 @@ router.get("/subscribers/:subscriber_id/stats", async (req, res) => {
   }
 
   try {
-    const [rows] = await pool.query(queries.getSubscriberStats, [
+    const [rows] = await safeQuery(queries.getSubscriberStats, [ // ⚡ CHANGED
       subscriber_id,
       subscriber_id,
       subscriber_id,
@@ -232,13 +230,11 @@ router.get("/subscribers/:subscriber_id/stats", async (req, res) => {
 
 
 router.get("/top", async (req, res) => {
-  const limit = 10; // default limit, no query param needed
+  const limit = 10;
 
   try {
-    // 1. Use centralized totals query
-    const [counts] = await pool.query(queries.getInteractionTotals);
+    const [counts] = await safeQuery(queries.getInteractionTotals); // ⚡ CHANGED
 
-    // 2. Pick winner
     let winner = counts[0];
     for (const row of counts) {
       if (row.total > winner.total) {
@@ -246,7 +242,6 @@ router.get("/top", async (req, res) => {
       }
     }
 
-    // 3. Choose query dynamically
     let query;
     switch (winner.type) {
       case "favorite":
@@ -262,8 +257,7 @@ router.get("/top", async (req, res) => {
         return successResponse(res, { best_matches: [] }, "No interactions found.");
     }
 
-    // 4. Execute and return
-    const [best_matches] = await pool.query(query, [limit]);
+    const [best_matches] = await safeQuery(query, [limit]); // ⚡ CHANGED
 
     return successResponse(
       res,

@@ -11,7 +11,24 @@ const pool = mysql.createPool({
   port: process.env.DB_PORT,
   waitForConnections: true,
   connectionLimit: 10,
-  queueLimit: 0
+  queueLimit: 0,
+  enableKeepAlive: true,
+  keepAliveInitialDelay: 10000, // send keepalive packets after 10s
 });
 
-export default pool;
+
+// ⚡ Safe query with retry
+async function safeQuery(sql, params = [], retry = true) {
+  try {
+    return await pool.query(sql, params);
+  } catch (err) {
+    // Retry for transient connection errors
+    if (retry && (err.code === "ECONNRESET" || err.code === "PROTOCOL_CONNECTION_LOST")) {
+      console.warn("Transient DB error detected. Retrying query...", { code: err.code, sql });
+      return safeQuery(sql, params, false); // retry once
+    }
+    throw err; // rethrow if not retryable or retry already attempted
+  }
+}
+
+export { pool, safeQuery };

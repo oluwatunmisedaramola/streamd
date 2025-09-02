@@ -5,6 +5,7 @@ import swaggerUi from "swagger-ui-express";
 import YAML from "yamljs";
 import path from "path";
 import { fileURLToPath } from "url";
+import globalErrorHandler from ".utils/GlobalErrorHandler.js";
 
 import categoriesRouter from "./src/routes/categories.js";
 import videosRouter from "./src/routes/videos.js";
@@ -35,16 +36,8 @@ app.get("/", (req, res) => {
   res.json({ status: "ok", service: "Football Video API" });
 });
 
-// Error handler
-app.use((err, req, res, next) => {
-  console.error("GlobalErrorHanlder says:", err);
-
-  const statusCode = err.status || 500;
-  res.status(statusCode).json({
-    success: false,
-    message: err.message || "Internal Server Error",
-  });
-});
+// Global error handler (should be last middleware)
+app.use(globalErrorHandler);
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

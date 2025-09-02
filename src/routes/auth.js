@@ -1,5 +1,5 @@
 import express from "express";
-import pool from "../db/pool.js";
+import { safeQuery } from "../db/pool.js"; // ⚡ CHANGED
 import { queries } from "../db/queries.js";
 import { successResponse, errorResponse, dbErrorHandler } from "../utils/authResponse.js";
 import { normalizeMsisdn, detectCarrier } from "../utils/msisdn.js";
@@ -17,7 +17,7 @@ router.post("/login", async (req, res) => {
     const carrier = detectCarrier(msisdn);
     if (!carrier) return errorResponse(res, "Unknown carrier", 400);
 
-    const [existing] = await pool.query(queries.getSubscriberByMsisdn, [msisdn]);
+    const [existing] = await safeQuery(queries.getSubscriberByMsisdn, [msisdn]); // ⚡ CHANGED
 
     if (existing.length > 0) {
       const subscriber = existing[0];
@@ -33,12 +33,12 @@ router.post("/login", async (req, res) => {
           start_time: subscriber.start_time,
           end_time: subscriber.end_time,
           session_token: token,
-          session_expires_at: subscriber.end_time, // align with subscription for now
+          session_expires_at: subscriber.end_time,
           is_first_time: false,
           remaining_seconds: remainingSeconds,
         }, "Access granted");
       } else {
-        const [linkRows] = await pool.query(queries.getSubscriptionLinkByCarrier, [carrier]);
+        const [linkRows] = await safeQuery(queries.getSubscriptionLinkByCarrier, [carrier]); // ⚡ CHANGED
         return successResponse(res, {
           status: currentStatus,
           carrier,
@@ -49,7 +49,7 @@ router.post("/login", async (req, res) => {
         }, "Subscription required");
       }
     } else {
-      const [linkRows] = await pool.query(queries.getSubscriptionLinkByCarrier, [carrier]);
+      const [linkRows] = await safeQuery(queries.getSubscriptionLinkByCarrier, [carrier]); // ⚡ CHANGED
       return successResponse(res, {
         status: "pending",
         carrier,
@@ -72,15 +72,15 @@ router.get("/callback", async (req, res) => {
     if (!msisdn || !carrier) return errorResponse(res, "Missing msisdn or carrier", 400);
 
     msisdn = normalizeMsisdn(msisdn);
-    const [existing] = await pool.query(queries.getSubscriberByMsisdn, [msisdn]);
+    const [existing] = await safeQuery(queries.getSubscriberByMsisdn, [msisdn]); // ⚡ CHANGED
 
     if (existing.length > 0) {
-      await pool.query(queries.updateSubscriber, [100.0, msisdn]);
+      await safeQuery(queries.updateSubscriber, [100.0, msisdn]); // ⚡ CHANGED
     } else {
-      await pool.query(queries.insertSubscriber, [msisdn, 100.0]);
+      await safeQuery(queries.insertSubscriber, [msisdn, 100.0]); // ⚡ CHANGED
     }
 
-    const [subRows] = await pool.query(queries.getSubscriberByMsisdn, [msisdn]);
+    const [subRows] = await safeQuery(queries.getSubscriberByMsisdn, [msisdn]); // ⚡ CHANGED
     const subscriber = subRows[0];
     const currentStatus = await checkAndExpire(subscriber);
     const token = await createSession(subscriber.id, subscriber.end_time);
@@ -114,7 +114,7 @@ router.get("/status", async (req, res) => {
     }
 
     const token = authHeader.split(" ")[1];
-    const [rows] = await pool.query(queries.getSessionWithSubscriber, [token]);
+    const [rows] = await safeQuery(queries.getSessionWithSubscriber, [token]); // ⚡ CHANGED
 
     if (rows.length === 0) {
       return errorResponse(res, "Session expired or invalid", 401);
@@ -122,13 +122,11 @@ router.get("/status", async (req, res) => {
 
     const record = rows[0];
 
-    // 🔒 check session expiry
     if (new Date(record.expires_at) <= new Date()) {
       await destroySession(token);
       return errorResponse(res, "Session expired", 401);
     }
 
-    // ✅ check subscription expiry
     const currentStatus = await checkAndExpire(record);
 
     const remainingSeconds = currentStatus === "active"
@@ -164,15 +162,15 @@ router.post("/webhook", async (req, res) => {
     }
 
     if (updateStatus === "active") {
-      await pool.query(queries.updateSubscriber, [100.0, msisdn]);
+      await safeQuery(queries.updateSubscriber, [100.0, msisdn]); // ⚡ CHANGED
     } else {
-      await pool.query(
+      await safeQuery( // ⚡ CHANGED
         `UPDATE subscribers SET status=?, updated_at=NOW() WHERE msisdn=?`,
         [updateStatus, msisdn]
       );
     }
 
-    const [subRows] = await pool.query(queries.getSubscriberByMsisdn, [msisdn]);
+    const [subRows] = await safeQuery(queries.getSubscriberByMsisdn, [msisdn]); // ⚡ CHANGED
     const subscriber = subRows[0];
     const currentStatus = await checkAndExpire(subscriber);
 

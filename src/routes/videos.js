@@ -1,12 +1,11 @@
 import express from "express";
-import pool from "../db/pool.js";
+import { safeQuery } from "../db/pool.js"; // ⚡ CHANGED: replaced direct pool import
 import { queries } from "../db/queries.js";
 import { DateTime } from "luxon";
 import { successResponse, errorResponse } from "../utils/response.js";
 
 const router = express.Router();
 
-// Helper to build pagination metadata
 const buildMetadata = (total, page, pageSize) => ({
   total_items: total,
   page,
@@ -18,22 +17,21 @@ const buildMetadata = (total, page, pageSize) => ({
   next_page: page * pageSize < total ? page + 1 : null,
 });
 
-/* -------------------------
-   STATIC & SPECIFIC ROUTES
-------------------------- */
+// -------------------------
+// STATIC & SPECIFIC ROUTES
+// -------------------------
 
-// GET /api/videos/recent
 router.get("/recent", async (req, res, next) => {
   const { page = 1, pageSize = 10, sort = "DESC" } = req.query;
 
   try {
-    const [[{ total }]] = await pool.query(queries.countRecentHighlights);
+    const [[{ total }]] = await safeQuery(queries.countRecentHighlights); // ⚡ CHANGED
 
     if (total === 0) {
       return successResponse(res, [], buildMetadata(0, Number(page), Number(pageSize)));
     }
 
-    const [rows] = await pool.query(queries.getRecentHighlights(sort), [
+    const [rows] = await safeQuery(queries.getRecentHighlights(sort), [ // ⚡ CHANGED
       Number(pageSize),
       (page - 1) * pageSize,
     ]);
@@ -44,7 +42,6 @@ router.get("/recent", async (req, res, next) => {
   }
 });
 
-// GET /api/videos/date
 router.get("/date", async (req, res, next) => {
   const { from, to, category, page = 1, pageSize = 10, sort = "DESC" } = req.query;
   const cappedPageSize = Math.min(Number(pageSize), 100);
@@ -66,11 +63,11 @@ router.get("/date", async (req, res, next) => {
       params = [from, to, cappedPageSize, (page - 1) * cappedPageSize];
     }
 
-    const [[{ total }]] = await pool.query(
+    const [[{ total }]] = await safeQuery( // ⚡ CHANGED
       totalQuery,
       category ? [from, to, category] : [from, to]
     );
-    const [rows] = await pool.query(sql, params);
+    const [rows] = await safeQuery(sql, params); // ⚡ CHANGED
 
     return successResponse(res, rows, buildMetadata(total, Number(page), cappedPageSize));
   } catch (err) {
@@ -78,16 +75,15 @@ router.get("/date", async (req, res, next) => {
   }
 });
 
-// GET /api/videos/category/:categoryName
 router.get("/category/:categoryName", async (req, res, next) => {
   const { categoryName } = req.params;
   const { page = 1, pageSize = 10, sort = "DESC" } = req.query;
   const cappedPageSize = Math.min(Number(pageSize), 100);
 
   try {
-    const [[{ total }]] = await pool.query(queries.countVideosByCategory, [categoryName]);
+    const [[{ total }]] = await safeQuery(queries.countVideosByCategory, [categoryName]); // ⚡ CHANGED
 
-    const [rows] = await pool.query(queries.getVideosByCategory(sort), [
+    const [rows] = await safeQuery(queries.getVideosByCategory(sort), [ // ⚡ CHANGED
       categoryName,
       cappedPageSize,
       (page - 1) * cappedPageSize,
@@ -99,7 +95,6 @@ router.get("/category/:categoryName", async (req, res, next) => {
   }
 });
 
-// GET /api/videos/category/:categoryName/date/:filter
 router.get("/category/:categoryName/date/:filter", async (req, res, next) => {
   const { categoryName, filter } = req.params;
   const { page = 1, pageSize = 10, sort = "DESC", tz = "Africa/Lagos" } = req.query;
@@ -122,13 +117,13 @@ router.get("/category/:categoryName/date/:filter", async (req, res, next) => {
   }
 
   try {
-    const [[{ total }]] = await pool.query(queries.countVideosByCategoryAndDate, [
+    const [[{ total }]] = await safeQuery(queries.countVideosByCategoryAndDate, [ // ⚡ CHANGED
       categoryName,
       start.toFormat("yyyy-MM-dd"),
       end.toFormat("yyyy-MM-dd"),
     ]);
 
-    const [rows] = await pool.query(queries.getVideosByCategoryAndDate(sort), [
+    const [rows] = await safeQuery(queries.getVideosByCategoryAndDate(sort), [ // ⚡ CHANGED
       categoryName,
       start.toFormat("yyyy-MM-dd"),
       end.toFormat("yyyy-MM-dd"),
@@ -142,7 +137,6 @@ router.get("/category/:categoryName/date/:filter", async (req, res, next) => {
   }
 });
 
-// GET /api/videos/category/:categoryName/date
 router.get("/category/:categoryName/date", async (req, res, next) => {
   const { categoryName } = req.params;
   const { from, to, page = 1, pageSize = 10, sort = "DESC" } = req.query;
@@ -153,13 +147,13 @@ router.get("/category/:categoryName/date", async (req, res, next) => {
   }
 
   try {
-    const [[{ total }]] = await pool.query(queries.countVideosByCategoryAndDate, [
+    const [[{ total }]] = await safeQuery(queries.countVideosByCategoryAndDate, [ // ⚡ CHANGED
       categoryName,
       from,
       to,
     ]);
 
-    const [rows] = await pool.query(queries.getVideosByCategoryAndDate(sort), [
+    const [rows] = await safeQuery(queries.getVideosByCategoryAndDate(sort), [ // ⚡ CHANGED
       categoryName,
       from,
       to,
@@ -173,14 +167,13 @@ router.get("/category/:categoryName/date", async (req, res, next) => {
   }
 });
 
-// GET /api/videos
 router.get("/", async (req, res, next) => {
   const { page = 1, pageSize = 10, sort = "DESC" } = req.query;
   const cappedPageSize = Math.min(Number(pageSize), 100);
 
   try {
-    const [[{ total }]] = await pool.query(queries.countAllVideos);
-    const [rows] = await pool.query(queries.getAllVideos(sort), [
+    const [[{ total }]] = await safeQuery(queries.countAllVideos); // ⚡ CHANGED
+    const [rows] = await safeQuery(queries.getAllVideos(sort), [ // ⚡ CHANGED
       cappedPageSize,
       (page - 1) * cappedPageSize,
     ]);
@@ -191,16 +184,16 @@ router.get("/", async (req, res, next) => {
   }
 });
 
-/* -------------------------
-   DYNAMIC ROUTES LAST
-------------------------- */
-// GET /api/videos/:id/related
+// -------------------------
+// DYNAMIC ROUTES
+// -------------------------
+
 router.get("/:id/related", async (req, res) => {
   try {
     const { id } = req.params;
     const limit = parseInt(req.query.limit, 10) || 5;
 
-    const [related] = await pool.query(queries.getRelatedVideos, [id, id, limit]);
+    const [related] = await safeQuery(queries.getRelatedVideos, [id, id, limit]); // ⚡ CHANGED
 
     if (!related.length) {
       return errorResponse(res, 404, `No related videos found for video ${id}`);
@@ -212,10 +205,9 @@ router.get("/:id/related", async (req, res) => {
   }
 });
 
-// GET /api/videos/:id
 router.get("/:id", async (req, res, next) => {
   try {
-    const [rows] = await pool.query(queries.getVideoById, [req.params.id]);
+    const [rows] = await safeQuery(queries.getVideoById, [req.params.id]); // ⚡ CHANGED
     if (!rows.length) return errorResponse(res, 404, "Video not found");
     return successResponse(res, rows[0]);
   } catch (err) {
