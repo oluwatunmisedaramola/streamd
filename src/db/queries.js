@@ -314,4 +314,50 @@ export const queries = {
     UNION ALL
     SELECT 'saved' AS type, COUNT(*) AS total FROM saved_matches;
   `,
+
+    getSubscriberByMsisdn: `
+    SELECT * 
+    FROM subscribers 
+    WHERE msisdn=? 
+    LIMIT 1
+  `,
+
+  insertSubscriber: `
+    INSERT INTO subscribers (msisdn, status, start_time, end_time, amount) 
+    VALUES (?, 'active', NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), ?)
+  `,
+
+  updateSubscriber: `
+    UPDATE subscribers 
+    SET status='active', 
+        start_time=NOW(), 
+        end_time=DATE_ADD(NOW(), INTERVAL 1 DAY), 
+        amount=?, 
+        updated_at=NOW()
+    WHERE msisdn=?
+  `,
+
+  getSubscriptionLinkByCarrier: `
+    SELECT link 
+    FROM subscription_links sl 
+    JOIN carriers c ON sl.carrier_id = c.id
+    WHERE c.name=? 
+    LIMIT 1
+  `,
+
+  createSession: `
+    INSERT INTO sessions (subscriber_id, token, expires_at) 
+    VALUES (?, ?, ?)
+  `,
+
+  getSessionWithSubscriber: `
+    SELECT 
+      s.token, 
+      s.expires_at, 
+      sub.* 
+    FROM sessions s 
+    JOIN subscribers sub ON s.subscriber_id=sub.id 
+    WHERE s.token=? 
+    LIMIT 1
+  `,
 }
