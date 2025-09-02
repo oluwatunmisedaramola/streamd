@@ -5,7 +5,7 @@ import swaggerUi from "swagger-ui-express";
 import YAML from "yamljs";
 import path from "path";
 import { fileURLToPath } from "url";
-import globalErrorHandler from "./utils/GlobalErrorHandler.js";
+import globalErrorHandler from "./src/utils/globalErrorHandler.js";
 
 import categoriesRouter from "./src/routes/categories.js";
 import videosRouter from "./src/routes/videos.js";
