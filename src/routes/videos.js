@@ -139,24 +139,72 @@ router.get("/category/:categoryName/date/:filter", async (req, res, next) => {
 
 router.get("/category/:categoryName/date", async (req, res, next) => {
   const { categoryName } = req.params;
-  const { from, to, page = 1, pageSize = 10, sort = "DESC" } = req.query;
+  const { day, from, to, page = 1, pageSize = 10, sort = "DESC", tz = "Africa/Lagos" } = req.query;
   const cappedPageSize = Math.min(Number(pageSize), 100);
 
-  if (!from || !to) {
-    return errorResponse(res, 400, "Missing 'from' or 'to' query params");
-  }
+  const now = DateTime.now().setZone(tz);
+  let start, end;
 
   try {
-    const [[{ total }]] = await safeQuery(queries.countVideosByCategoryAndDate, [ // ⚡ CHANGED
+    // --- Keyword mode ---
+    if (day) {
+      if (from || to) {
+        return errorResponse(res, 400, "Use either 'day' OR 'from/to', not both.");
+      }
+
+      if (day === "yesterday") {
+        start = now.minus({ days: 1 }).startOf("day");
+        end = now.minus({ days: 1 }).endOf("day");
+      } else if (day === "today") {
+        start = now.startOf("day");
+        end = now.endOf("day");
+      } else if (day === "tomorrow") {
+        start = now.plus({ days: 1 }).startOf("day");
+        end = now.plus({ days: 1 }).endOf("day");
+      } else {
+        return errorResponse(res, 400, "Invalid 'day'. Use yesterday|today|tomorrow");
+      }
+
+    // --- Range mode ---
+    } else if (from) {
+      let startDate = DateTime.fromFormat(from, "yyyy-MM-dd", { zone: tz });
+      if (!startDate.isValid) startDate = DateTime.fromFormat(from, "dd-MM-yyyy", { zone: tz });
+
+      if (!startDate.isValid) {
+        return errorResponse(res, 400, "Invalid 'from' format. Use yyyy-MM-dd or dd-MM-yyyy");
+      }
+
+      let endDate;
+      if (to) {
+        endDate = DateTime.fromFormat(to, "yyyy-MM-dd", { zone: tz });
+        if (!endDate.isValid) endDate = DateTime.fromFormat(to, "dd-MM-yyyy", { zone: tz });
+
+        if (!endDate.isValid) {
+          return errorResponse(res, 400, "Invalid 'to' format. Use yyyy-MM-dd or dd-MM-yyyy");
+        }
+      } else {
+        // default 'to' → end of current day
+        endDate = now;
+      }
+
+      start = startDate.startOf("day");
+      end = endDate.endOf("day");
+
+    } else {
+      return errorResponse(res, 400, "Provide either 'day=yesterday|today|tomorrow' OR 'from[/to]'");
+    }
+
+    // --- Execute queries ---
+    const [[{ total }]] = await safeQuery(queries.countVideosByCategoryAndDate, [
       categoryName,
-      from,
-      to,
+      start.toSQL({ includeOffset: false }),
+      end.toSQL({ includeOffset: false }),
     ]);
 
-    const [rows] = await safeQuery(queries.getVideosByCategoryAndDate(sort), [ // ⚡ CHANGED
+    const [rows] = await safeQuery(queries.getVideosByCategoryAndDate(sort), [
       categoryName,
-      from,
-      to,
+      start.toSQL({ includeOffset: false }),
+      end.toSQL({ includeOffset: false }),
       cappedPageSize,
       (page - 1) * cappedPageSize,
     ]);
@@ -166,6 +214,7 @@ router.get("/category/:categoryName/date", async (req, res, next) => {
     next(err);
   }
 });
+
 
 router.get("/", async (req, res, next) => {
   const { page = 1, pageSize = 10, sort = "DESC" } = req.query;

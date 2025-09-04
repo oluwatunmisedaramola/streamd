@@ -126,114 +126,182 @@ paths:
               example:
                 error: "Unexpected database error."
 
-  /videos/category/{categoryName}/date/{filter}:
-    get:
-      summary: Get videos by category and date filter
-      deprecated: true
-      parameters:
-        - in: path
-          name: categoryName
-          required: true
-          schema: { type: string }
-        - in: path
-          name: filter
-          required: true
-          schema: { type: string, enum: [yesterday, today, tomorrow] }
-        - in: query
-          name: tz
-          description: IANA timezone (used to calculate the filter window)
-          schema: { type: string, default: Africa/Lagos }
-        - in: query
-          name: page
-          schema: { type: integer, default: 1, minimum: 1 }
-        - in: query
-          name: pageSize
-          schema: { type: integer, default: 10, minimum: 1 }
-        - in: query
-          name: sort
-          schema: { type: string, enum: [ASC, DESC], default: DESC }
-      responses:
-        "200":
-          description: Videos in category with date filter
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PaginatedVideos"
-        "400":
-          description: Invalid date filter or query params
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error: "Filter must be one of [yesterday, today, tomorrow]."
+/videos/category/{categoryName}/date/{filter}:
+  get:
+    summary: Get videos by category and date filter (deprecated)
+    description: >
+      ⚠️ Deprecated — use **`/videos/category/{categoryName}/date`** with either:  
+      - `day=yesterday|today|tomorrow`, or  
+      - `from` / `to` query params for a date range.  
+      
+      This endpoint will be removed in a future release.
+    deprecated: true
+    parameters:
+      - in: path
+        name: categoryName
+        required: true
+        schema: { type: string }
+      - in: path
+        name: filter
+        required: true
+        schema:
+          type: string
+          enum: [yesterday, today, tomorrow]
+      - in: query
+        name: tz
+        description: IANA timezone (used to calculate the filter window)
+        schema: { type: string, default: Africa/Lagos }
+      - in: query
+        name: page
+        schema: { type: integer, default: 1, minimum: 1 }
+      - in: query
+        name: pageSize
+        schema: { type: integer, default: 10, minimum: 1 }
+      - in: query
+        name: sort
+        schema: { type: string, enum: [ASC, DESC], default: DESC }
+    responses:
+      "200":
+        description: Videos in category with date filter
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaginatedVideos"
+      "400":
+        description: Invalid date filter or query params
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+            example:
+              error: "Filter must be one of [yesterday, today, tomorrow]."
 
   /videos/category/{categoryName}/date:
-    get:
-      summary: Get videos by category and date range
-      parameters:
-        - in: path
-          name: categoryName
-          required: true
-          schema: { type: string }
-        - in: query
-          name: from
-          required: true
-          schema: { type: string, format: date }
-        - in: query
-          name: to
-          required: true
-          schema: { type: string, format: date }
-        - in: query
-          name: page
-          schema: { type: integer, default: 1, minimum: 1 }
-        - in: query
-          name: pageSize
-          schema: { type: integer, default: 10, minimum: 1 }
-        - in: query
-          name: sort
-          schema: { type: string, enum: [ASC, DESC], default: DESC }
-      responses:
-        "200":
-          description: Videos in category between date range
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/PaginatedVideos"
-              examples:
-                success:
-                  value:
-                    data:
-                      - id: 55
-                        title: "PSG vs Monaco — Highlights"
-                        thumbnail: "https://cdn.example.com/t/55.jpg"
-                        category: "Highlights"
-                        match_date: "2025-01-15T21:00:00Z"
-                    meta:
-                      total_items: 4
-                      page: 1
-                      pageSize: 10
-                      total_pages: 1
-                      has_previous: false
-                      has_next: false
-                      previous_page: null
-                      next_page: null
-        "400":
-          description: Invalid date range or query params
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error: "Missing 'from' or 'to' query params."
-        "500":
-          description: Internal server error
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/Error"
-              example:
-                error: "Unexpected database error."
+   get:
+    summary: Get videos by category and date filter or range
+    description: >
+      Fetch videos in a category using **one** of the following filter modes (mutually exclusive):  
+      
+      - **Keyword filter** via `day=yesterday|today|tomorrow`, OR  
+      - **Date range** via `from` and `to` query params.  
+      
+      Rules:  
+      - If `day` is provided, `from`/`to` must not be provided.  
+      - If `from` is provided without `to`, the default `to` is the **end of the current day** in the requested timezone.  
+      - Dates may be passed in `yyyy-MM-dd` or `dd-MM-yyyy` format.  
+      - All dates are normalized to full-day windows:  
+        - `from` → 00:00:00 (midnight start of day)  
+        - `to` → 23:59:59 (end of day).  
+    parameters:
+      - in: path
+        name: categoryName
+        required: true
+        schema:
+          type: string
+      - in: query
+        name: day
+        description: Keyword filter for a single day (mutually exclusive with `from`/`to`)
+        schema:
+          type: string
+          enum: [yesterday, today, tomorrow]
+      - in: query
+        name: from
+        description: >
+         Start date (inclusive). Formats: `yyyy-MM-dd` or `dd-MM-yyyy`. Mutually exclusive with `day`.
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: to
+        description: >
+          End date (inclusive, normalized to end-of-day). Formats: `yyyy-MM-dd` or `dd-MM-yyyy`.  
+          If omitted, defaults to the end of the current day. Mutually exclusive with `day`.
+        schema:
+          type: string
+          format: date
+      - in: query
+        name: tz
+        description: IANA timezone (used for keyword filters and normalization). Defaults to Africa/Lagos.
+        schema:
+          type: string
+          default: Africa/Lagos
+      - in: query
+        name: page
+        schema:
+          type: integer
+          default: 1
+          minimum: 1
+      - in: query
+        name: pageSize
+        schema:
+          type: integer
+          default: 10
+          minimum: 1
+      - in: query
+        name: sort
+        schema:
+          type: string
+          enum: [ASC, DESC]
+          default: DESC
+    responses:
+      "200":
+        description: Videos in category within specified date filter or range
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PaginatedVideos"
+            examples:
+              success-keyword:
+                summary: Fetch using keyword filter
+                value:
+                  data:
+                    - id: 123
+                      title: "Chelsea vs Arsenal — Highlights"
+                      thumbnail: "https://cdn.example.com/t/123.jpg"
+                      category: "Highlights"
+                      match_date: "2025-09-03T19:45:00Z"
+                  meta:
+                    total_items: 2
+                    page: 1
+                    pageSize: 10
+                    total_pages: 1
+              success-range:
+                summary: Fetch using date range
+                value:
+                  data:
+                    - id: 55
+                      title: "PSG vs Monaco — Highlights"
+                      thumbnail: "https://cdn.example.com/t/55.jpg"
+                      category: "Highlights"
+                      match_date: "2025-01-15T21:00:00Z"
+                  meta:
+                    total_items: 4
+                    page: 1
+                    pageSize: 10
+                    total_pages: 1
+      "400":
+        description: Invalid date filter or query params
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+            examples:
+              invalid-day:
+                value: { error: "Invalid 'day'. Use yesterday|today|tomorrow." }
+              invalid-range:
+                value: { error: "Invalid 'from' or 'to' format. Use yyyy-MM-dd or dd-MM-yyyy." }
+              missing-range:
+                value: { error: "Provide either day=yesterday|today|tomorrow OR from/to query params." }
+              mixed-filters:
+                value: { error: "Use either 'day' OR 'from/to', not both." }
+      "500":
+        description: Internal server error
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Error"
+            example:
+              error: "Unexpected database error."
 
   /videos/date:
     get:
