@@ -126,8 +126,8 @@ paths:
               example:
                 error: "Unexpected database error."
 
-/videos/category/{categoryName}/date/{filter}:
-  get:
+  /videos/category/{categoryName}/date/{filter}:
+   get:
     summary: Get videos by category and date filter (deprecated)
     description: >
       ⚠️ Deprecated — use **`/videos/category/{categoryName}/date`** with either:  
