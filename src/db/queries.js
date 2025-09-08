@@ -287,7 +287,7 @@ export const queries = {
   // 💾 Top saved matches
   getTopSavedMatches: `
     SELECT 
-      m.id,  -- AS match_id,
+      m.id,  -- AS match_id
       m.title,
       m.thumbnail,
       m.date AS match_date,
