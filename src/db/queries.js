@@ -306,7 +306,7 @@ export const queries = {
     ORDER BY total DESC, m.date DESC
     LIMIT ?
   `,
-    // 📊 Aggregate totals for favorite, loved, and saved
+    // 📊 Aggregate totals for favorite, loved, and saved 
   getInteractionTotals: `
     SELECT 'favorite' AS type, COUNT(*) AS total FROM favorite_matches
     UNION ALL
