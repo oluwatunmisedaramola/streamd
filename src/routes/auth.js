@@ -184,7 +184,9 @@ router.get("/status", async (req, res) => {
 router.post("/webhook", async (req, res) => {
   try {
     let { msisdn, status } = req.body;
+
     if (!msisdn || !status) {
+      // log bad payload but always ack
       await safeQuery(
         `INSERT INTO webhook_events (msisdn, raw_status, normalized_status, raw_payload) 
          VALUES (?, ?, ?, ?)`,
@@ -193,32 +195,50 @@ router.post("/webhook", async (req, res) => {
       return res.sendStatus(200);
     }
 
+    // Normalize MSISDN + status
     msisdn = normalizeMsisdn(msisdn);
     const rawStatus = status;
     const updateStatus = mapTelcoStatus(rawStatus); // ⚡ CHANGED
 
+    // Always log raw + normalized status
     await safeQuery(
       `INSERT INTO webhook_events (msisdn, raw_status, normalized_status, raw_payload) 
        VALUES (?, ?, ?, ?)`,
       [msisdn, rawStatus, updateStatus, JSON.stringify(req.body)]
     );
 
+    // Skip DB update if status is unknown
     if (!updateStatus) {
-      return res.sendStatus(200); // unknown → log only
+      return res.sendStatus(200);
     }
 
-    if (updateStatus === "active") {
-      await safeQuery(queries.updateSubscriber, [100.0, msisdn]);
+    // Check if subscriber already exists
+    const [existing] = await safeQuery(queries.getSubscriberByMsisdn, [msisdn]);
+
+    if (existing.length === 0) {
+      // Insert new subscriber
+      await safeQuery(queries.insertSubscriberGeneric, [
+        msisdn,
+        updateStatus,
+        100.0, // amount (can adjust if telco sends price in payload)
+      ]);
     } else {
-      await safeQuery(
-        `UPDATE subscribers SET status=?, updated_at=NOW() WHERE msisdn=?`,
-        [updateStatus, msisdn]
-      );
+      // Update existing subscriber
+      if (updateStatus === "active") {
+        await safeQuery(queries.updateSubscriber, [100.0, msisdn]);
+      } else {
+        await safeQuery(
+          `UPDATE subscribers SET status=?, updated_at=NOW() WHERE msisdn=?`,
+          [updateStatus, msisdn]
+        );
+      }
     }
 
     return res.sendStatus(200);
   } catch (err) {
     console.error("Webhook error:", err);
+
+    // log failure internally
     try {
       await safeQuery(
         `INSERT INTO webhook_events (msisdn, raw_status, normalized_status, raw_payload) 
@@ -228,7 +248,8 @@ router.post("/webhook", async (req, res) => {
     } catch (logErr) {
       console.error("Failed to log webhook error:", logErr);
     }
-    return res.sendStatus(200);
+
+    return res.sendStatus(200); // ✅ always ack, never fail telco
   }
 });
 

@@ -327,6 +327,11 @@ export const queries = {
     VALUES (?, 'active', NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), ?)
   `,
 
+  insertSubscriberGeneric: `
+  INSERT INTO subscribers (msisdn, status, start_time, end_time, amount) 
+  VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), ?)
+`,
+
   updateSubscriber: `
     UPDATE subscribers 
     SET status='active', 
