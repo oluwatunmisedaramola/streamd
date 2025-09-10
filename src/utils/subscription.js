@@ -35,3 +35,23 @@ export const createSession = async (subscriberId, endTime) => {
 export const destroySession = async (token) => {
   await safeQuery(`DELETE FROM sessions WHERE token=?`, [token]); // ⚡ change made
 };
+
+export function mapTelcoStatus(raw) {
+  if (!raw) return null;
+  switch (raw.toLowerCase()) {
+    case "active":
+      return "active";
+    case "inactive":
+    case "terminated":
+    case "expired":
+      return "expired";
+    case "grace":
+    case "pending":
+      return "pending";
+    case "cancelled":
+    case "unsubscribed":
+      return "cancelled";
+    default:
+      return null; // unknown status, just log & skip update
+  }
+}

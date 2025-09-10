@@ -3,7 +3,7 @@ import { safeQuery } from "../db/pool.js"; // ⚡ CHANGED
 import { queries } from "../db/queries.js";
 import { successResponse, errorResponse, dbErrorHandler } from "../utils/authResponse.js";
 import { normalizeMsisdn, detectCarrier } from "../utils/msisdn.js";
-import { checkAndExpire, createSession, destroySession } from "../utils/subscription.js";
+import { checkAndExpire, createSession, destroySession, mapTelcoStatus } from "../utils/subscription.js";
 
 const router = express.Router();
 
@@ -24,6 +24,7 @@ router.post("/login", async (req, res) => {
       const currentStatus = await checkAndExpire(subscriber);
 
       if (currentStatus === "active") {
+        // ⚡ SAME: if already active, mint token immediately
         const token = await createSession(subscriber.id, subscriber.end_time);
         const remainingSeconds = Math.max(0, Math.floor((new Date(subscriber.end_time) - new Date()) / 1000));
 
@@ -38,24 +39,30 @@ router.post("/login", async (req, res) => {
           remaining_seconds: remainingSeconds,
         }, "Access granted");
       } else {
-        const [linkRows] = await safeQuery(queries.getSubscriptionLinkByCarrier, [carrier]); // ⚡ CHANGED
+        // ⚡ UPDATED: no token here, rely on /status polling later
+        const [linkRows] = await safeQuery(queries.getSubscriptionLinkByCarrier, [carrier]);
         return successResponse(res, {
           status: currentStatus,
           carrier,
           subscription_link: linkRows.length > 0 ? linkRows[0].link : null,
           msisdn,
           is_first_time: false,
+          session_token: null,   // ⚡ NEW: explicitly null
+          session_expires_at: null, // ⚡ NEW
           remaining_seconds: 0,
         }, "Subscription required");
       }
     } else {
-      const [linkRows] = await safeQuery(queries.getSubscriptionLinkByCarrier, [carrier]); // ⚡ CHANGED
+      // ⚡ UPDATED: pending state — no token yet, wait for webhook + /status
+      const [linkRows] = await safeQuery(queries.getSubscriptionLinkByCarrier, [carrier]);
       return successResponse(res, {
         status: "pending",
         carrier,
         subscription_link: linkRows.length > 0 ? linkRows[0].link : null,
         msisdn,
         is_first_time: true,
+        session_token: null,   // ⚡ NEW
+        session_expires_at: null, // ⚡ NEW
         remaining_seconds: 0,
       }, "Subscription required");
     }
@@ -105,41 +112,63 @@ router.get("/callback", async (req, res) => {
   }
 });
 
-// 3. STATUS
+
+// 3. STATUS (dual mode: token or msisdn polling)
 router.get("/status", async (req, res) => {
   try {
     const authHeader = req.headers["authorization"];
-    if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return errorResponse(res, "Missing or invalid token", 401);
+    let subscriber;
+    let token;
+
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      // ✅ Existing token-based flow
+      token = authHeader.split(" ")[1];
+      const [rows] = await safeQuery(queries.getSessionWithSubscriber, [token]);
+      if (rows.length === 0) {
+        return errorResponse(res, "Session expired or invalid", 401);
+      }
+
+      const record = rows[0];
+      if (new Date(record.expires_at) <= new Date()) {
+        await destroySession(token);
+        return errorResponse(res, "Session expired", 401);
+      }
+
+      subscriber = record; // contains msisdn, start_time, end_time, etc.
+
+    } else {
+      // ✅ Polling mode (before user has a token)
+      let { msisdn } = req.query;
+      if (!msisdn) return errorResponse(res, "Missing msisdn", 400);
+
+      msisdn = normalizeMsisdn(msisdn);
+      const [subRows] = await safeQuery(queries.getSubscriberByMsisdn, [msisdn]);
+      if (subRows.length === 0) {
+        return errorResponse(res, "Subscriber not found", 404);
+      }
+
+      subscriber = subRows[0];
+
+      // If active, mint a session token on the fly
+      if (subscriber.status === "active") {
+        token = await createSession(subscriber.id, subscriber.end_time);
+      }
     }
 
-    const token = authHeader.split(" ")[1];
-    const [rows] = await safeQuery(queries.getSessionWithSubscriber, [token]); // ⚡ CHANGED
-
-    if (rows.length === 0) {
-      return errorResponse(res, "Session expired or invalid", 401);
-    }
-
-    const record = rows[0];
-
-    if (new Date(record.expires_at) <= new Date()) {
-      await destroySession(token);
-      return errorResponse(res, "Session expired", 401);
-    }
-
-    const currentStatus = await checkAndExpire(record);
-
-    const remainingSeconds = currentStatus === "active"
-      ? Math.max(0, Math.floor((new Date(record.end_time) - new Date()) / 1000))
-      : 0;
+    // Common: check expiry + compute status
+    const currentStatus = await checkAndExpire(subscriber);
+    const remainingSeconds =
+      currentStatus === "active"
+        ? Math.max(0, Math.floor((new Date(subscriber.end_time) - new Date()) / 1000))
+        : 0;
 
     return successResponse(res, {
       status: currentStatus,
-      msisdn: record.msisdn,
-      start_time: record.start_time,
-      end_time: record.end_time,
-      session_token: token,
-      session_expires_at: record.expires_at,
+      msisdn: subscriber.msisdn,
+      start_time: subscriber.start_time,
+      end_time: subscriber.end_time,
+      session_token: token || null,
+      session_expires_at: subscriber.end_time,
       is_first_time: false,
       remaining_seconds: remainingSeconds,
     }, currentStatus === "active" ? "Session valid" : "Subscription expired");
@@ -149,44 +178,57 @@ router.get("/status", async (req, res) => {
   }
 });
 
-// 4. WEBHOOK
+
+
+// 4. WEBHOOK (minimal response, full internal logging)
 router.post("/webhook", async (req, res) => {
   try {
     let { msisdn, status } = req.body;
-    if (!msisdn || !status) return errorResponse(res, "Missing fields", 400);
+    if (!msisdn || !status) {
+      await safeQuery(
+        `INSERT INTO webhook_events (msisdn, raw_status, normalized_status, raw_payload) 
+         VALUES (?, ?, ?, ?)`,
+        [msisdn || null, status || null, null, JSON.stringify(req.body)]
+      );
+      return res.sendStatus(200);
+    }
 
     msisdn = normalizeMsisdn(msisdn);
-    let updateStatus = status.toLowerCase();
-    if (!["active", "expired", "pending", "cancelled"].includes(updateStatus)) {
-      return errorResponse(res, "Invalid status", 400);
+    const rawStatus = status;
+    const updateStatus = mapTelcoStatus(rawStatus); // ⚡ CHANGED
+
+    await safeQuery(
+      `INSERT INTO webhook_events (msisdn, raw_status, normalized_status, raw_payload) 
+       VALUES (?, ?, ?, ?)`,
+      [msisdn, rawStatus, updateStatus, JSON.stringify(req.body)]
+    );
+
+    if (!updateStatus) {
+      return res.sendStatus(200); // unknown → log only
     }
 
     if (updateStatus === "active") {
-      await safeQuery(queries.updateSubscriber, [100.0, msisdn]); // ⚡ CHANGED
+      await safeQuery(queries.updateSubscriber, [100.0, msisdn]);
     } else {
-      await safeQuery( // ⚡ CHANGED
+      await safeQuery(
         `UPDATE subscribers SET status=?, updated_at=NOW() WHERE msisdn=?`,
         [updateStatus, msisdn]
       );
     }
 
-    const [subRows] = await safeQuery(queries.getSubscriberByMsisdn, [msisdn]); // ⚡ CHANGED
-    const subscriber = subRows[0];
-    const currentStatus = await checkAndExpire(subscriber);
-
-    const remainingSeconds = currentStatus === "active"
-      ? Math.max(0, Math.floor((new Date(subscriber.end_time) - new Date()) / 1000))
-      : 0;
-
-    return successResponse(res, {
-      status: currentStatus,
-      msisdn,
-      end_time: subscriber.end_time,
-      remaining_seconds: remainingSeconds,
-    }, "Subscriber updated via webhook");
+    return res.sendStatus(200);
   } catch (err) {
     console.error("Webhook error:", err);
-    return dbErrorHandler(res, err, "webhook update");
+    try {
+      await safeQuery(
+        `INSERT INTO webhook_events (msisdn, raw_status, normalized_status, raw_payload) 
+         VALUES (?, ?, ?, ?)`,
+        [null, "error", null, JSON.stringify({ error: err.message })]
+      );
+    } catch (logErr) {
+      console.error("Failed to log webhook error:", logErr);
+    }
+    return res.sendStatus(200);
   }
 });
 
