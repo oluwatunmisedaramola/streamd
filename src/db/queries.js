@@ -13,6 +13,7 @@ export const queries = {
     SELECT 
       v.id, 
       v.title, 
+      v.match_id,
       m.thumbnail, 
       c.name as category, 
       m.date as match_date,
@@ -43,6 +44,7 @@ export const queries = {
     SELECT 
       v.id, 
       v.title, 
+      v.match_id,
       m.thumbnail, 
       c.name as category, 
       m.date as match_date,
@@ -83,6 +85,7 @@ export const queries = {
         SELECT 
           v.id, 
           v.title, 
+          v.match_id,
           m.thumbnail, 
           c.name as category, 
           m.date as match_date,
@@ -102,7 +105,8 @@ export const queries = {
       return `
         SELECT 
           v.id, 
-          v.title, 
+          v.title,
+          v.match_id, 
           m.thumbnail, 
           c.name as category, 
           m.date as match_date,
@@ -132,6 +136,7 @@ export const queries = {
     SELECT 
       v.id, 
       v.title, 
+      v.match_id,
       m.thumbnail, 
       c.name as category, 
       m.date as match_date,
@@ -151,7 +156,8 @@ export const queries = {
   getVideoById: `
     SELECT 
       v.id, 
-      v.title, 
+      v.title,
+      v.match_id, 
       m.thumbnail, 
       c.name as category, 
       m.date as match_date,
@@ -191,7 +197,8 @@ export const queries = {
   getRecentHighlights: (sort = "DESC") =>`
     SELECT 
      v.id, 
-     v.title, 
+     v.title,
+     v.match_id, 
      c.name AS category, 
      m.date AS match_date, 
      m.thumbnail,
@@ -219,6 +226,7 @@ export const queries = {
     SELECT 
       v.id,
       v.title,
+      v.match_id,
       c.name AS category,
       m.date AS match_date,
       m.thumbnail,
