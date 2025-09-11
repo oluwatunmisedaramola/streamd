@@ -31,6 +31,7 @@ router.post("/login", async (req, res) => {
         return successResponse(res, {
           status: currentStatus,
           msisdn: subscriber.msisdn,
+          subscriber_id: subscriber.id,
           start_time: subscriber.start_time,
           end_time: subscriber.end_time,
           session_token: token,
