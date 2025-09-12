@@ -245,75 +245,79 @@ export const queries = {
     ORDER BY m.date DESC
     LIMIT ?
   `,
+// ⭐ Top favorited matches
+getTopFavoritedMatches: `
+  SELECT 
+    m.id,
+    v.match_id AS match_id,   -- ✅ explicitly included
+    m.title,
+    m.thumbnail,
+    m.date AS match_date,
+    v.embed_code AS video_url,
+    c.name AS category,
+    l.name AS league,
+    co.name AS country,
+    COUNT(fm.id) AS total
+  FROM favorite_matches fm
+  JOIN matches m ON fm.match_id = m.id
+  JOIN videos v ON v.match_id = m.id
+  JOIN categories c ON v.category_id = c.id
+  JOIN leagues l ON m.league_id = l.id
+  JOIN countries co ON l.country_id = co.id
+  GROUP BY m.id
+  ORDER BY total DESC, m.date DESC
+  LIMIT ?
+`,
 
-   getTopFavoritedMatches: `
-    SELECT 
-      m.id, -- AS match_id,
-      m.title,
-      m.thumbnail,
-      m.date AS match_date,
-      v.embed_code AS video_url, -- ✅ consistent alias
-      c.name AS category,
-      l.name AS league,
-      co.name AS country,
-      COUNT(fm.id) AS total
-    FROM favorite_matches fm
-    JOIN matches m ON fm.match_id = m.id
-    JOIN videos v ON v.match_id = m.id
-    JOIN categories c ON v.category_id = c.id
-    JOIN leagues l ON m.league_id = l.id
-    JOIN countries co ON l.country_id = co.id
-    GROUP BY m.id
-    ORDER BY total DESC, m.date DESC
-    LIMIT ?
-  `,
+// ❤️ Top loved matches
+getTopLovedMatches: `
+  SELECT 
+    m.id,
+    v.match_id AS match_id,   -- ✅ explicitly included
+    m.title,
+    m.thumbnail,
+    m.date AS match_date,
+    v.embed_code AS video_url,
+    c.name AS category,
+    l.name AS league,
+    co.name AS country,
+    COUNT(lm.id) AS total
+  FROM loved_matches lm
+  JOIN matches m ON lm.match_id = m.id
+  JOIN videos v ON v.match_id = m.id
+  JOIN categories c ON v.category_id = c.id
+  JOIN leagues l ON m.league_id = l.id
+  JOIN countries co ON l.country_id = co.id
+  WHERE lm.deleted_at IS NULL
+  GROUP BY m.id
+  ORDER BY total DESC, m.date DESC
+  LIMIT ?
+`,
 
-  // ❤️ Top loved matches
-  getTopLovedMatches: `
-    SELECT 
-      m.id, -- AS match_id,
-      m.title,
-      m.thumbnail,
-      m.date AS match_date,
-      v.embed_code AS video_url, -- ✅ consistent alias
-      c.name AS category,
-      l.name AS league,
-      co.name AS country,
-      COUNT(lm.id) AS total
-    FROM loved_matches lm
-    JOIN matches m ON lm.match_id = m.id
-    JOIN videos v ON v.match_id = m.id
-    JOIN categories c ON v.category_id = c.id
-    JOIN leagues l ON m.league_id = l.id
-    JOIN countries co ON l.country_id = co.id
-    WHERE lm.deleted_at IS NULL -- ✅ respect soft-delete
-    GROUP BY m.id
-    ORDER BY total DESC, m.date DESC
-    LIMIT ?
-  `,
+// 💾 Top saved matches
+getTopSavedMatches: `
+  SELECT 
+    m.id,
+    v.match_id AS match_id,   -- ✅ explicitly included
+    m.title,
+    m.thumbnail,
+    m.date AS match_date,
+    v.embed_code AS video_url,
+    c.name AS category,
+    l.name AS league,
+    co.name AS country,
+    COUNT(sm.id) AS total
+  FROM saved_matches sm
+  JOIN matches m ON sm.match_id = m.id
+  JOIN videos v ON v.match_id = m.id
+  JOIN categories c ON v.category_id = c.id
+  JOIN leagues l ON m.league_id = l.id
+  JOIN countries co ON l.country_id = co.id
+  GROUP BY m.id
+  ORDER BY total DESC, m.date DESC
+  LIMIT ?
+`,
 
-  // 💾 Top saved matches
-  getTopSavedMatches: `
-    SELECT 
-      m.id,  -- AS match_id
-      m.title,
-      m.thumbnail,
-      m.date AS match_date,
-      v.embed_code AS video_url, -- ✅ consistent alias
-      c.name AS category,
-      l.name AS league,
-      co.name AS country,
-      COUNT(sm.id) AS total
-    FROM saved_matches sm
-    JOIN matches m ON sm.match_id = m.id
-    JOIN videos v ON v.match_id = m.id
-    JOIN categories c ON v.category_id = c.id
-    JOIN leagues l ON m.league_id = l.id
-    JOIN countries co ON l.country_id = co.id
-    GROUP BY m.id
-    ORDER BY total DESC, m.date DESC
-    LIMIT ?
-  `,
     // 📊 Aggregate totals for favorite, loved, and saved 
   getInteractionTotals: `
     SELECT 'favorite' AS type, COUNT(*) AS total FROM favorite_matches
