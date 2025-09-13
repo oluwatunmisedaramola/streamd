@@ -16,8 +16,12 @@ router.post("/saved-matches", async (req, res) => {
   if (!match_id) return errorResponse(res, "match_id is required", 400);
 
   try {
-    await safeQuery( // ⚡ CHANGED
-      `INSERT INTO saved_matches (subscriber_id, match_id) VALUES (?, ?)`,
+    await safeQuery(
+      `INSERT INTO saved_matches (subscriber_id, match_id)
+       VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE 
+         deleted_at = NULL, 
+         saved_at = NOW()`, // ⚡ UPDATED for soft delete
       [subscriber_id, match_id]
     );
     return successResponse(res, null, "Match saved for watch later.");
@@ -26,15 +30,17 @@ router.post("/saved-matches", async (req, res) => {
   }
 });
 
-// Remove from saved
+// Remove from saved (soft delete)
 router.delete("/saved-matches", async (req, res) => {
   const { subscriber_id, match_id } = req.body;
   if (!subscriber_id) return errorResponse(res, "subscriber_id is required", 400);
   if (!match_id) return errorResponse(res, "match_id is required", 400);
 
   try {
-    const [result] = await safeQuery( // ⚡ CHANGED
-      `DELETE FROM saved_matches WHERE subscriber_id = ? AND match_id = ?`,
+    const [result] = await safeQuery(
+      `UPDATE saved_matches
+       SET deleted_at = CURRENT_TIMESTAMP
+       WHERE subscriber_id = ? AND match_id = ? AND deleted_at IS NULL`, // ⚡ UPDATED: soft delete
       [subscriber_id, match_id]
     );
     if (result.affectedRows === 0) {
@@ -46,14 +52,14 @@ router.delete("/saved-matches", async (req, res) => {
   }
 });
 
-// List saved matches for a subscriber
+// List saved matches (only active ones)
 router.get("/saved-matches", async (req, res) => {
   const { subscriber_id } = req.query;
   if (!subscriber_id) return errorResponse(res, "subscriber_id is required", 400);
 
   try {
-    const [rows] = await safeQuery( // ⚡ CHANGED
-      `SELECT * FROM saved_matches WHERE subscriber_id = ?`,
+    const [rows] = await safeQuery(
+      `SELECT * FROM saved_matches WHERE subscriber_id = ? AND deleted_at IS NULL`, // ⚡ UPDATED filter
       [subscriber_id]
     );
     return successResponse(res, rows, "Saved matches retrieved.");
@@ -73,8 +79,12 @@ router.post("/loved-matches", async (req, res) => {
   if (!match_id) return errorResponse(res, "match_id is required", 400);
 
   try {
-    await safeQuery( // ⚡ CHANGED
-      `INSERT INTO loved_matches (subscriber_id, match_id) VALUES (?, ?)`,
+    await safeQuery(
+      `INSERT INTO loved_matches (subscriber_id, match_id)
+       VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE 
+         deleted_at = NULL,
+         loved_at = NOW()`, // ⚡ UPDATED for soft delete
       [subscriber_id, match_id]
     );
     return successResponse(res, null, "Match loved.");
@@ -132,8 +142,12 @@ router.post("/favorite-matches", async (req, res) => {
   if (!match_id) return errorResponse(res, "match_id is required", 400);
 
   try {
-    await safeQuery( // ⚡ CHANGED
-      `INSERT INTO favorite_matches (subscriber_id, match_id) VALUES (?, ?)`,
+    await safeQuery(
+      `INSERT INTO favorite_matches (subscriber_id, match_id)
+       VALUES (?, ?)
+       ON DUPLICATE KEY UPDATE 
+         deleted_at = NULL,
+         favorited_at = NOW()`, // ⚡ UPDATED for soft delete
       [subscriber_id, match_id]
     );
     return successResponse(res, null, "Match favorited.");
@@ -142,15 +156,17 @@ router.post("/favorite-matches", async (req, res) => {
   }
 });
 
-// Remove favorite
+// Remove favorite (soft delete)
 router.delete("/favorite-matches", async (req, res) => {
   const { subscriber_id, match_id } = req.body;
   if (!subscriber_id) return errorResponse(res, "subscriber_id is required", 400);
   if (!match_id) return errorResponse(res, "match_id is required", 400);
 
   try {
-    const [result] = await safeQuery( // ⚡ CHANGED
-      `DELETE FROM favorite_matches WHERE subscriber_id = ? AND match_id = ?`,
+    const [result] = await safeQuery(
+      `UPDATE favorite_matches
+       SET deleted_at = CURRENT_TIMESTAMP
+       WHERE subscriber_id = ? AND match_id = ? AND deleted_at IS NULL`, // ⚡ UPDATED: soft delete
       [subscriber_id, match_id]
     );
     if (result.affectedRows === 0) {
@@ -162,14 +178,14 @@ router.delete("/favorite-matches", async (req, res) => {
   }
 });
 
-// List favorites
+// List favorites (only active ones)
 router.get("/favorite-matches", async (req, res) => {
   const { subscriber_id } = req.query;
   if (!subscriber_id) return errorResponse(res, "subscriber_id is required", 400);
 
   try {
-    const [rows] = await safeQuery( // ⚡ CHANGED
-      `SELECT * FROM favorite_matches WHERE subscriber_id = ?`,
+    const [rows] = await safeQuery(
+      `SELECT * FROM favorite_matches WHERE subscriber_id = ? AND deleted_at IS NULL`, // ⚡ UPDATED filter
       [subscriber_id]
     );
     return successResponse(res, rows, "Favorite matches retrieved.");

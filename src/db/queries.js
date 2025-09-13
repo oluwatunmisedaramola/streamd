@@ -179,21 +179,6 @@ export const queries = {
     ORDER BY name ASC
   `,
 
-   getMatchStats: `
-    SELECT
-      (SELECT COUNT(*) FROM saved_matches sm WHERE sm.match_id = ?) AS saved_count,
-      (SELECT COUNT(*) FROM loved_matches lm WHERE lm.match_id = ? AND lm.deleted_at IS NULL) AS loved_count,
-      (SELECT COUNT(*) FROM favorite_matches fm WHERE fm.match_id = ?) AS favorite_count
-  `,
-
-  // 📊 Subscriber stats: count how many matches user has saved, loved, favorited
-  getSubscriberStats: `
-    SELECT
-      (SELECT COUNT(*) FROM saved_matches sm WHERE sm.subscriber_id = ?) AS saved_count,
-      (SELECT COUNT(*) FROM loved_matches lm WHERE lm.subscriber_id = ? AND lm.deleted_at IS NULL) AS loved_count,
-      (SELECT COUNT(*) FROM favorite_matches fm WHERE fm.subscriber_id = ?) AS favorite_count
-  `,
-
   getRecentHighlights: (sort = "DESC") =>`
     SELECT 
      v.id, 
@@ -245,11 +230,27 @@ export const queries = {
     ORDER BY m.date DESC
     LIMIT ?
   `,
+// 📊 Match stats
+getMatchStats: `
+  SELECT
+    (SELECT COUNT(*) FROM saved_matches sm WHERE sm.match_id = ? AND sm.deleted_at IS NULL) AS saved_count,
+    (SELECT COUNT(*) FROM loved_matches lm WHERE lm.match_id = ? AND lm.deleted_at IS NULL) AS loved_count,
+    (SELECT COUNT(*) FROM favorite_matches fm WHERE fm.match_id = ? AND fm.deleted_at IS NULL) AS favorite_count
+`,
+
+// 📊 Subscriber stats
+getSubscriberStats: `
+  SELECT
+    (SELECT COUNT(*) FROM saved_matches sm WHERE sm.subscriber_id = ? AND sm.deleted_at IS NULL) AS saved_count,
+    (SELECT COUNT(*) FROM loved_matches lm WHERE lm.subscriber_id = ? AND lm.deleted_at IS NULL) AS loved_count,
+    (SELECT COUNT(*) FROM favorite_matches fm WHERE fm.subscriber_id = ? AND fm.deleted_at IS NULL) AS favorite_count
+`,
+
 // ⭐ Top favorited matches
 getTopFavoritedMatches: `
   SELECT 
     m.id,
-    v.match_id AS match_id,   -- ✅ explicitly included
+    v.match_id AS match_id,
     m.title,
     m.thumbnail,
     m.date AS match_date,
@@ -264,6 +265,7 @@ getTopFavoritedMatches: `
   JOIN categories c ON v.category_id = c.id
   JOIN leagues l ON m.league_id = l.id
   JOIN countries co ON l.country_id = co.id
+  WHERE fm.deleted_at IS NULL
   GROUP BY m.id
   ORDER BY total DESC, m.date DESC
   LIMIT ?
@@ -273,7 +275,7 @@ getTopFavoritedMatches: `
 getTopLovedMatches: `
   SELECT 
     m.id,
-    v.match_id AS match_id,   -- ✅ explicitly included
+    v.match_id AS match_id,
     m.title,
     m.thumbnail,
     m.date AS match_date,
@@ -298,7 +300,7 @@ getTopLovedMatches: `
 getTopSavedMatches: `
   SELECT 
     m.id,
-    v.match_id AS match_id,   -- ✅ explicitly included
+    v.match_id AS match_id,
     m.title,
     m.thumbnail,
     m.date AS match_date,
@@ -313,38 +315,39 @@ getTopSavedMatches: `
   JOIN categories c ON v.category_id = c.id
   JOIN leagues l ON m.league_id = l.id
   JOIN countries co ON l.country_id = co.id
+  WHERE sm.deleted_at IS NULL
   GROUP BY m.id
   ORDER BY total DESC, m.date DESC
   LIMIT ?
 `,
 
-    // 📊 Aggregate totals for favorite, loved, and saved 
-  getInteractionTotals: `
-    SELECT 'favorite' AS type, COUNT(*) AS total FROM favorite_matches
-    UNION ALL
-    SELECT 'loved' AS type, COUNT(*) AS total FROM loved_matches WHERE deleted_at IS NULL
-    UNION ALL
-    SELECT 'saved' AS type, COUNT(*) AS total FROM saved_matches;
-  `,
+// 📊 Aggregate totals
+getInteractionTotals: `
+  SELECT 'favorite' AS type, COUNT(*) AS total FROM favorite_matches WHERE deleted_at IS NULL
+  UNION ALL
+  SELECT 'loved' AS type, COUNT(*) AS total FROM loved_matches WHERE deleted_at IS NULL
+  UNION ALL
+  SELECT 'saved' AS type, COUNT(*) AS total FROM saved_matches WHERE deleted_at IS NULL;
+`,
 
-    getSubscriberByMsisdn: `
+getSubscriberByMsisdn: `
     SELECT * 
     FROM subscribers 
     WHERE msisdn=? 
     LIMIT 1
   `,
 
-  insertSubscriber: `
+insertSubscriber: `
     INSERT INTO subscribers (msisdn, status, start_time, end_time, amount) 
     VALUES (?, 'active', NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), ?)
   `,
 
-  insertSubscriberGeneric: `
+insertSubscriberGeneric: `
   INSERT INTO subscribers (msisdn, status, start_time, end_time, amount) 
   VALUES (?, ?, NOW(), DATE_ADD(NOW(), INTERVAL 1 DAY), ?)
 `,
 
-  updateSubscriber: `
+updateSubscriber: `
     UPDATE subscribers 
     SET status='active', 
         start_time=NOW(), 
@@ -354,7 +357,7 @@ getTopSavedMatches: `
     WHERE msisdn=?
   `,
 
-  getSubscriptionLinkByCarrier: `
+getSubscriptionLinkByCarrier: `
     SELECT link 
     FROM subscription_links sl 
     JOIN carriers c ON sl.carrier_id = c.id
@@ -362,12 +365,12 @@ getTopSavedMatches: `
     LIMIT 1
   `,
 
-  createSession: `
+createSession: `
     INSERT INTO sessions (subscriber_id, token, expires_at) 
     VALUES (?, ?, ?)
   `,
 
-  getSessionWithSubscriber: `
+getSessionWithSubscriber: `
     SELECT 
       s.token, 
       s.expires_at, 
