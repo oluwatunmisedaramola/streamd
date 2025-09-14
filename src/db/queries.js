@@ -422,7 +422,8 @@ buildSearchQuery: (filters) => {
            c.name AS category,
            l.name AS league,
            co.name AS country,
-           GROUP_CONCAT(DISTINCT t.name) AS teams,
+           -- ✅ UPDATED: coalesce so we return empty string instead of NULL when no teams
+           COALESCE(GROUP_CONCAT(DISTINCT t.name), '') AS teams,
            m.date,
            COUNT(*) OVER() as total_count
     FROM videos v
@@ -430,27 +431,27 @@ buildSearchQuery: (filters) => {
     JOIN categories c ON v.category_id = c.id
     JOIN leagues l ON m.league_id = l.id
     JOIN countries co ON l.country_id = co.id
-    JOIN match_teams mt ON m.id = mt.match_id
-    JOIN teams t ON mt.team_id = t.id
+    -- ✅ UPDATED: make match_teams an optional relationship (LEFT JOIN)
+    LEFT JOIN match_teams mt ON m.id = mt.match_id
+    -- ✅ UPDATED: make teams an optional relationship (LEFT JOIN)
+    LEFT JOIN teams t ON mt.team_id = t.id
     WHERE 1=1
   `;
 
   const params = [];
 
-  // 🔒 Full-text search (parameterized)
+  // 🔒 Full-text search (parameterized & sanitized)
   if (filters.q) {
     const sanitizedQ = filters.q.replace(/[^a-zA-Z0-9\s]/g, "").trim();
 
     if (sanitizedQ) {
       sql += `
         AND (
-          -- ✅ UPDATED: use placeholders instead of string interpolation
           MATCH(v.title) AGAINST(? IN NATURAL LANGUAGE MODE)
           OR MATCH(m.title) AGAINST(? IN NATURAL LANGUAGE MODE)
           OR t.name LIKE ?
         )
       `;
-      // ✅ UPDATED: push sanitizedQ as params
       params.push(sanitizedQ, sanitizedQ, `%${sanitizedQ}%`);
     }
   }
@@ -473,7 +474,7 @@ buildSearchQuery: (filters) => {
     params.push(...filters.category);
   }
 
-  // ✅ location → countries
+  // location → countries
   if (filters.location?.length) {
     sql += ` AND co.id IN (${filters.location.map(() => "?").join(",")})`;
     params.push(...filters.location);
