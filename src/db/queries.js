@@ -413,85 +413,88 @@ getSessionWithSubscriber: `
   /* -------------------------
      MAIN SEARCH QUERY BUILDER
   --------------------------*/
-  buildSearchQuery: (filters) => {
-    let sql = `
-      SELECT v.id AS video_id,
-             v.title AS video_title,
-             m.title AS match_title,
-             c.name AS category,
-             l.name AS league,
-             co.name AS country,
-             GROUP_CONCAT(DISTINCT t.name) AS teams,
-             m.date,
-             COUNT(*) OVER() as total_count
-      FROM videos v
-      JOIN matches m ON v.match_id = m.id
-      JOIN categories c ON v.category_id = c.id
-      JOIN leagues l ON m.league_id = l.id
-      JOIN countries co ON l.country_id = co.id
-      JOIN match_teams mt ON m.id = mt.match_id
-      JOIN teams t ON mt.team_id = t.id
-      WHERE 1=1
-    `;
+buildSearchQuery: (filters) => {
+  let sql = `
+    SELECT v.id AS video_id,
+           v.title AS video_title,
+           m.title AS match_title,
+           c.name AS category,
+           l.name AS league,
+           co.name AS country,
+           GROUP_CONCAT(DISTINCT t.name) AS teams,
+           m.date,
+           COUNT(*) OVER() as total_count
+    FROM videos v
+    JOIN matches m ON v.match_id = m.id
+    JOIN categories c ON v.category_id = c.id
+    JOIN leagues l ON m.league_id = l.id
+    JOIN countries co ON l.country_id = co.id
+    JOIN match_teams mt ON m.id = mt.match_id
+    JOIN teams t ON mt.team_id = t.id
+    WHERE 1=1
+  `;
 
-    const params = [];
+  const params = [];
 
-    // full-text search
-    if (filters.q) {
-      sql += `
-        AND (
-          MATCH(v.title) AGAINST(? IN NATURAL LANGUAGE MODE)
-          OR MATCH(m.title) AGAINST(? IN NATURAL LANGUAGE MODE)
-          OR t.name LIKE ?
-        )
-      `;
-      params.push(filters.q, filters.q, `%${filters.q}%`);
-    }
-
-    // league
-    if (filters.league?.length) {
-      sql += ` AND l.id IN (${filters.league.map(() => "?").join(",")})`;
-      params.push(...filters.league);
-    }
-
-    // team
-    if (filters.team?.length) {
-      sql += ` AND t.id IN (${filters.team.map(() => "?").join(",")})`;
-      params.push(...filters.team);
-    }
-
-    // category
-    if (filters.category?.length) {
-      sql += ` AND c.name IN (${filters.category.map(() => "?").join(",")})`;
-      params.push(...filters.category);
-    }
-
-    // ✅ UPDATED: location mapped to countries
-    if (filters.location?.length) {
-      sql += ` AND co.id IN (${filters.location.map(() => "?").join(",")})`;
-      params.push(...filters.location);
-    }
-
-    // date
-    if (filters.date) {
-      sql += ` AND DATE(m.date) = ?`;
-      params.push(filters.date);
-    }
-
-    // match status
-    if (filters.match_status) {
-      if (filters.match_status === "upcoming") sql += ` AND m.date > NOW()`;
-      if (filters.match_status === "finished") sql += ` AND m.date < NOW()`;
-      if (filters.match_status === "live") sql += ` AND m.date BETWEEN DATE_SUB(NOW(), INTERVAL 2 HOUR) AND NOW()`;
-    }
-
+  // full-text search
+  if (filters.q) {
     sql += `
-      GROUP BY v.id
-      ORDER BY m.date DESC
-      LIMIT ? OFFSET ?
+      AND (
+        -- ✅ UPDATED: force parameter into string for MATCH
+        MATCH(v.title) AGAINST(CONCAT('', ?) IN NATURAL LANGUAGE MODE)
+        OR MATCH(m.title) AGAINST(CONCAT('', ?) IN NATURAL LANGUAGE MODE)
+        OR t.name LIKE ?
+      )
     `;
-    params.push(Number(filters.limit), Number(filters.offset));
-
-    return { sql, params };
+    // ✅ still push params normally
+    params.push(filters.q, filters.q, `%${filters.q}%`);
   }
+
+  // league
+  if (filters.league?.length) {
+    sql += ` AND l.id IN (${filters.league.map(() => "?").join(",")})`;
+    params.push(...filters.league);
+  }
+
+  // team
+  if (filters.team?.length) {
+    sql += ` AND t.id IN (${filters.team.map(() => "?").join(",")})`;
+    params.push(...filters.team);
+  }
+
+  // category
+  if (filters.category?.length) {
+    sql += ` AND c.name IN (${filters.category.map(() => "?").join(",")})`;
+    params.push(...filters.category);
+  }
+
+  // ✅ location mapped to countries
+  if (filters.location?.length) {
+    sql += ` AND co.id IN (${filters.location.map(() => "?").join(",")})`;
+    params.push(...filters.location);
+  }
+
+  // date
+  if (filters.date) {
+    sql += ` AND DATE(m.date) = ?`;
+    params.push(filters.date);
+  }
+
+  // match status
+  if (filters.match_status) {
+    if (filters.match_status === "upcoming") sql += ` AND m.date > NOW()`;
+    if (filters.match_status === "finished") sql += ` AND m.date < NOW()`;
+    if (filters.match_status === "live") sql += ` AND m.date BETWEEN DATE_SUB(NOW(), INTERVAL 2 HOUR) AND NOW()`;
+  }
+
+  sql += `
+    GROUP BY v.id
+    ORDER BY m.date DESC
+    LIMIT ? OFFSET ?
+  `;
+  params.push(Number(filters.limit), Number(filters.offset));
+
+  return { sql, params };
+}
+
 }
