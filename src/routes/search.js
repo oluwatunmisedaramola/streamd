@@ -3,6 +3,18 @@ import { safeQuery } from "../db/pool.js";
 import { queries } from "../db/queries.js";
 import { successResponse, dbErrorHandler } from "../utils/interactionResponse.js";
 
+// Debug utility: interpolate params into SQL for logging
+function formatSQL(sql, params) {
+  let i = 0;
+  return sql.replace(/\?/g, () => {
+    const param = params[i++];
+    if (typeof param === "string") return `'${param}'`;
+    if (param === null || param === undefined) return "NULL";
+    return param;
+  });
+}
+
+
 const router = express.Router();
 
 router.get("/search", async (req, res) => {
@@ -29,7 +41,7 @@ router.get("/search", async (req, res) => {
 
   try {
     const { sql, params } = queries.buildSearchQuery(filters);
-    console.log("Final SQL:", sql);
+     console.log("Final SQL:\n", formatSQL(sql, params));
     console.log("Params:", params);
     const [rows] = await safeQuery(sql, params);
     const total = rows.length > 0 ? rows[0].total_count : 0;

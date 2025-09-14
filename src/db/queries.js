@@ -437,20 +437,21 @@ buildSearchQuery: (filters) => {
 
   const params = [];
 
-  // 🔒 Full-text search (sanitized)
+  // 🔒 Full-text search (parameterized)
   if (filters.q) {
-    // allow only letters, numbers, spaces — strip everything else
     const sanitizedQ = filters.q.replace(/[^a-zA-Z0-9\s]/g, "").trim();
 
     if (sanitizedQ) {
       sql += `
         AND (
-          MATCH(v.title) AGAINST('${sanitizedQ}' IN NATURAL LANGUAGE MODE)
-          OR MATCH(m.title) AGAINST('${sanitizedQ}' IN NATURAL LANGUAGE MODE)
+          -- ✅ UPDATED: use placeholders instead of string interpolation
+          MATCH(v.title) AGAINST(? IN NATURAL LANGUAGE MODE)
+          OR MATCH(m.title) AGAINST(? IN NATURAL LANGUAGE MODE)
           OR t.name LIKE ?
         )
       `;
-      params.push(`%${sanitizedQ}%`);
+      // ✅ UPDATED: push sanitizedQ as params
+      params.push(sanitizedQ, sanitizedQ, `%${sanitizedQ}%`);
     }
   }
 
@@ -472,7 +473,7 @@ buildSearchQuery: (filters) => {
     params.push(...filters.category);
   }
 
-  // location → countries
+  // ✅ location → countries
   if (filters.location?.length) {
     sql += ` AND co.id IN (${filters.location.map(() => "?").join(",")})`;
     params.push(...filters.location);
