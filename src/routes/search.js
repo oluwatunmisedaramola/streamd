@@ -29,6 +29,8 @@ router.get("/search", async (req, res) => {
 
   try {
     const { sql, params } = queries.buildSearchQuery(filters);
+    console.log("Final SQL:", sql);
+    console.log("Params:", params);
     const [rows] = await safeQuery(sql, params);
     const total = rows.length > 0 ? rows[0].total_count : 0;
 
