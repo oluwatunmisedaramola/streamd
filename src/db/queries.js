@@ -413,6 +413,7 @@ getSessionWithSubscriber: `
   /* -------------------------
      MAIN SEARCH QUERY BUILDER
   --------------------------*/
+// ✅ UPDATED: buildSearchQuery with safe q handling
 buildSearchQuery: (filters) => {
   let sql = `
     SELECT v.id AS video_id,
@@ -436,18 +437,21 @@ buildSearchQuery: (filters) => {
 
   const params = [];
 
-  // full-text search
+  // 🔒 Full-text search (sanitized)
   if (filters.q) {
-    sql += `
-      AND (
-        -- ✅ UPDATED: force parameter into string for MATCH
-        MATCH(v.title) AGAINST(CONCAT('', ?) IN NATURAL LANGUAGE MODE)
-        OR MATCH(m.title) AGAINST(CONCAT('', ?) IN NATURAL LANGUAGE MODE)
-        OR t.name LIKE ?
-      )
-    `;
-    // ✅ still push params normally
-    params.push(filters.q, filters.q, `%${filters.q}%`);
+    // allow only letters, numbers, spaces — strip everything else
+    const sanitizedQ = filters.q.replace(/[^a-zA-Z0-9\s]/g, "").trim();
+
+    if (sanitizedQ) {
+      sql += `
+        AND (
+          MATCH(v.title) AGAINST('${sanitizedQ}' IN NATURAL LANGUAGE MODE)
+          OR MATCH(m.title) AGAINST('${sanitizedQ}' IN NATURAL LANGUAGE MODE)
+          OR t.name LIKE ?
+        )
+      `;
+      params.push(`%${sanitizedQ}%`);
+    }
   }
 
   // league
@@ -468,7 +472,7 @@ buildSearchQuery: (filters) => {
     params.push(...filters.category);
   }
 
-  // ✅ location mapped to countries
+  // location → countries
   if (filters.location?.length) {
     sql += ` AND co.id IN (${filters.location.map(() => "?").join(",")})`;
     params.push(...filters.location);
