@@ -11,6 +11,8 @@ import categoriesRouter from "./src/routes/categories.js";
 import videosRouter from "./src/routes/videos.js";
 import interactionsRouter from "./src/routes/interactions.js";
 import authRouter from "./src/routes/auth.js";
+import searchRouter from "./src/routes/search.js";
+import filterRouter from "./src/routes/filterOptions.js";
 
 dotenv.config();
 
@@ -30,6 +32,8 @@ app.use("/api/categories", categoriesRouter);
 app.use("/api/videos", videosRouter);
 app.use("/api/interactions", interactionsRouter);
 app.use("/api/auth",authRouter );
+app.use("/api",searchRouter);
+app.use("/api",filterRouter);
 
 // Health check
 app.get("/", (req, res) => {
