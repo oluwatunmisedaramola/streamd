@@ -384,56 +384,62 @@ getSessionWithSubscriber: `
   /* -------------------------
      FILTER OPTIONS QUERIES
   --------------------------*/
+// ✅ TEAM OPTIONS
+getTeamsByName: `
+  SELECT id, name
+  FROM teams
+  WHERE MATCH(name) AGAINST(? IN BOOLEAN MODE)
+     OR name LIKE CONCAT(?, '%')
+  ORDER BY name ASC
+  LIMIT ? OFFSET ?
+`,
 
-  getTeamsByName: `
-    SELECT id, name 
-    FROM teams 
-    WHERE name LIKE ? 
-    ORDER BY name ASC 
-    LIMIT ? OFFSET ?
-  `,
+// ✅ LEAGUE OPTIONS
+getLeaguesByName: `
+  SELECT id, name
+  FROM leagues
+  WHERE MATCH(name) AGAINST(? IN BOOLEAN MODE)
+     OR name LIKE CONCAT(?, '%')
+  ORDER BY name ASC
+  LIMIT ? OFFSET ?
+`,
 
-  getLeaguesByName: `
-    SELECT id, name 
-    FROM leagues 
-    WHERE name LIKE ? 
-    ORDER BY name ASC 
-    LIMIT ? OFFSET ?
-  `,
+// ✅ LOCATION OPTIONS → internally queries "countries"
+getLocationsByName: `
+  SELECT id, name
+  FROM countries
+  WHERE MATCH(name) AGAINST(? IN BOOLEAN MODE)
+     OR name LIKE CONCAT(?, '%')
+  ORDER BY name ASC
+  LIMIT ? OFFSET ?
+`,
 
-  // ✅ UPDATED: using countries instead of non-existent locations
-  getLocationsByName: `
-    SELECT id, name 
-    FROM countries
-    WHERE name LIKE ? 
-    ORDER BY name ASC 
-    LIMIT ? OFFSET ?
-  `,
 
   /* -------------------------
      MAIN SEARCH QUERY BUILDER
   --------------------------*/
 // ✅ UPDATED: buildSearchQuery with safe q handling
-buildSearchQuery: (filters) => {
+// ✅ Combined: aliasing for frontend + mode switching
+buildSearchQuery: (filters, mode = "NATURAL") => {
   let sql = `
-    SELECT v.id AS video_id,
-           v.title AS video_title,
-           m.title AS match_title,
-           c.name AS category,
-           l.name AS league,
-           co.name AS country,
-           -- ✅ UPDATED: coalesce so we return empty string instead of NULL when no teams
-           COALESCE(GROUP_CONCAT(DISTINCT t.name), '') AS teams,
-           m.date,
-           COUNT(*) OVER() as total_count
+    SELECT 
+      v.id AS id,                -- ✅ renamed for frontend
+      v.title AS title,          -- ✅ renamed for frontend
+      m.id AS match_id,          -- ✅ renamed for frontend
+      m.thumbnail AS thumbnail,  -- ✅ from matches
+      c.name AS category,        
+      m.date AS match_date,      -- ✅ renamed for frontend
+      l.name AS league,
+      co.name AS country,
+      v.embed_code AS embed_code, -- ✅ renamed from embed_code
+      COUNT(*) OVER() as total_count
     FROM videos v
     JOIN matches m ON v.match_id = m.id
     JOIN categories c ON v.category_id = c.id
     JOIN leagues l ON m.league_id = l.id
     JOIN countries co ON l.country_id = co.id
-    -- ✅ UPDATED: make match_teams an optional relationship (LEFT JOIN)
+    -- ✅ optional relations
     LEFT JOIN match_teams mt ON m.id = mt.match_id
-    -- ✅ UPDATED: make teams an optional relationship (LEFT JOIN)
     LEFT JOIN teams t ON mt.team_id = t.id
     WHERE 1=1
   `;
@@ -443,12 +449,12 @@ buildSearchQuery: (filters) => {
   // 🔒 Full-text search (parameterized & sanitized)
   if (filters.q) {
     const sanitizedQ = filters.q.replace(/[^a-zA-Z0-9\s]/g, "").trim();
-
     if (sanitizedQ) {
       sql += `
         AND (
-          MATCH(v.title) AGAINST(? IN NATURAL LANGUAGE MODE)
-          OR MATCH(m.title) AGAINST(? IN NATURAL LANGUAGE MODE)
+          -- ✅ supports NATURAL or BOOLEAN depending on "mode"
+          MATCH(v.title) AGAINST(? IN ${mode} LANGUAGE MODE)
+          OR MATCH(m.title) AGAINST(? IN ${mode} LANGUAGE MODE)
           OR t.name LIKE ?
         )
       `;

@@ -31,7 +31,6 @@ router.get("/search", async (req, res) => {
       : category && validCategories.includes(category)
         ? [category]
         : [],
-    // ✅ location stays flexible but internally maps to countries
     location: Array.isArray(location) ? location : location ? [location] : [],
     match_status,
     date,
@@ -40,16 +39,26 @@ router.get("/search", async (req, res) => {
   };
 
   try {
-    const { sql, params } = queries.buildSearchQuery(filters);
-     console.log("Final SQL:\n", formatSQL(sql, params));
-    console.log("Params:", params);
-    const [rows] = await safeQuery(sql, params);
+    // ✅ First try NATURAL mode
+    let { sql, params } = queries.buildSearchQuery(filters, "NATURAL");
+    let [rows] = await safeQuery(sql, params);
+
+    // ✅ If no rows, retry in BOOLEAN mode
+    if (rows.length === 0 && filters.q) {
+      console.log("⚠️ No results in NATURAL mode → retrying in BOOLEAN mode");
+      ({ sql, params } = queries.buildSearchQuery(filters, "BOOLEAN"));
+      [rows] = await safeQuery(sql, params);
+    }
+
     const total = rows.length > 0 ? rows[0].total_count : 0;
+
+    // ✅ Strip total_count before returning
+    const results = rows.map(({ total_count, ...rest }) => rest);
 
     return successResponse(res, {
       query: q,
       filters,
-      results: rows,
+      results,
       pagination: { page: Number(page), limit: Number(limit), total }
     });
   } catch (err) {

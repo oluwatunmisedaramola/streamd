@@ -9,6 +9,7 @@ router.get("/filter-options", async (req, res) => {
   const { type, q = "", limit = 10, offset = 0 } = req.query;
 
   try {
+    // ✅ Static options → return in `{ id, name }` shape
     if (type === "match_status") {
       return successResponse(res, {
         type,
@@ -36,6 +37,7 @@ router.get("/filter-options", async (req, res) => {
       });
     }
 
+    // ✅ Dynamic queries for team / league / location
     let sql;
     switch (type) {
       case "team":
@@ -44,15 +46,26 @@ router.get("/filter-options", async (req, res) => {
       case "league":
         sql = queries.getLeaguesByName;
         break;
-      case "location":   // ✅ still called location in API
+      case "location": // still called "location" in API
         sql = queries.getLocationsByName; // internally queries countries
         break;
       default:
         return errorResponse(res, "Invalid filter type", 400);
     }
 
-    const [rows] = await safeQuery(sql, [`%${q}%`, Number(limit), Number(offset)]);
-    return successResponse(res, { type, query: q, options: rows, total: rows.length });
+    // ✅ Pass `q` twice → MATCH + LIKE fallback
+    const [rows] = await safeQuery(sql, [q, q, Number(limit), Number(offset)]);
+
+    // ✅ Return consistent shape `{ id, name }`
+    return successResponse(res, {
+      type,
+      query: q,
+      options: rows.map(row => ({
+        id: row.id,
+        name: row.name
+      })),
+      total: rows.length
+    });
 
   } catch (err) {
     return dbErrorHandler(res, err, "fetch filter options");
