@@ -39,20 +39,23 @@ router.get("/search", async (req, res) => {
   };
 
   try {
-    // ✅ First try NATURAL mode
+    // 1) NATURAL MODE
     let { sql, params } = queries.buildSearchQuery(filters, "NATURAL");
+    console.log("Trying NATURAL mode...");
+    console.log("Final SQL (NATURAL):\n", formatSQL(sql, params));
     let [rows] = await safeQuery(sql, params);
 
-    // ✅ If no rows, retry in BOOLEAN mode
-    if (rows.length === 0 && filters.q) {
-      console.log("⚠️ No results in NATURAL mode → retrying in BOOLEAN mode");
+    // 2) BOOLEAN fallback if no results and we had a q
+    if ((!rows || rows.length === 0) && filters.q) {
+      console.log("No rows from NATURAL mode — retrying in BOOLEAN mode...");
       ({ sql, params } = queries.buildSearchQuery(filters, "BOOLEAN"));
+      console.log("Final SQL (BOOLEAN):\n", formatSQL(sql, params)); // debug-friendly
       [rows] = await safeQuery(sql, params);
     }
 
     const total = rows.length > 0 ? rows[0].total_count : 0;
 
-    // ✅ Strip total_count before returning
+    // strip total_count from each row before returning
     const results = rows.map(({ total_count, ...rest }) => rest);
 
     return successResponse(res, {

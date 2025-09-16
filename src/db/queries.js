@@ -418,27 +418,25 @@ getLocationsByName: `
   /* -------------------------
      MAIN SEARCH QUERY BUILDER
   --------------------------*/
-// ✅ UPDATED: buildSearchQuery with safe q handling
-// ✅ Combined: aliasing for frontend + mode switching
+// ✅ FIXED: Combined: aliasing for frontend + correct mode switching + boolean wildcard
 buildSearchQuery: (filters, mode = "NATURAL") => {
   let sql = `
     SELECT 
-      v.id AS id,                -- ✅ renamed for frontend
-      v.title AS title,          -- ✅ renamed for frontend
-      m.id AS match_id,          -- ✅ renamed for frontend
-      m.thumbnail AS thumbnail,  -- ✅ from matches
-      c.name AS category,        
-      m.date AS match_date,      -- ✅ renamed for frontend
+      v.id AS id,
+      v.title AS title,
+      m.id AS match_id,
+      m.thumbnail AS thumbnail,
+      c.name AS category,
+      m.date AS match_date,
       l.name AS league,
       co.name AS country,
-      v.embed_code AS embed_code, -- ✅ renamed from embed_code
+      v.embed_code AS video_url,
       COUNT(*) OVER() as total_count
     FROM videos v
     JOIN matches m ON v.match_id = m.id
     JOIN categories c ON v.category_id = c.id
     JOIN leagues l ON m.league_id = l.id
     JOIN countries co ON l.country_id = co.id
-    -- ✅ optional relations
     LEFT JOIN match_teams mt ON m.id = mt.match_id
     LEFT JOIN teams t ON mt.team_id = t.id
     WHERE 1=1
@@ -448,17 +446,26 @@ buildSearchQuery: (filters, mode = "NATURAL") => {
 
   // 🔒 Full-text search (parameterized & sanitized)
   if (filters.q) {
-    const sanitizedQ = filters.q.replace(/[^a-zA-Z0-9\s]/g, "").trim();
+    // sanitize user input
+    const sanitizedQ = String(filters.q).replace(/[^a-zA-Z0-9\s]/g, "").trim();
+
     if (sanitizedQ) {
+      // ✅ FIXED: produce correct AGAINST clause text for each mode
+      const modeSql = mode === "BOOLEAN" ? "IN BOOLEAN MODE" : "IN NATURAL LANGUAGE MODE";
+
+      // ✅ FIXED: for BOOLEAN mode use a prefix wildcard (*) for MATCH to improve autocomplete
+      const matchParam = mode === "BOOLEAN" ? `${sanitizedQ}*` : sanitizedQ;
+
       sql += `
         AND (
-          -- ✅ supports NATURAL or BOOLEAN depending on "mode"
-          MATCH(v.title) AGAINST(? IN ${mode} LANGUAGE MODE)
-          OR MATCH(m.title) AGAINST(? IN ${mode} LANGUAGE MODE)
+          MATCH(v.title) AGAINST(? ${modeSql})
+          OR MATCH(m.title) AGAINST(? ${modeSql})
           OR t.name LIKE ?
         )
       `;
-      params.push(sanitizedQ, sanitizedQ, `%${sanitizedQ}%`);
+
+      // push params: MATCH params use matchParam, LIKE uses regular wildcard
+      params.push(matchParam, matchParam, `%${sanitizedQ}%`);
     }
   }
 
