@@ -1238,13 +1238,16 @@ paths:
               schema:
                 $ref: "#/components/schemas/AuthErrorResponse"             
   /search:
-   get:
-    summary: Search videos with filters
-    description: >
+    get:
+     summary: Search videos with filters
+     description: >
       Perform a text-based search across videos, matches, leagues, and teams, with optional filters.  
       All filters are optional — they can be used alone or in combination.  
-      `location` is currently mapped to **countries**.
-    parameters:
+
+      -- ✅ UPDATED: `league`, `team`, and `location` filters require **IDs** returned from `/filter-options`.  
+      Example: To search for *La Liga* + *Barcelona*, first call `/filter-options` for those names,  
+      then pass their IDs here.
+     parameters:
       - in: query
         name: q
         required: false
@@ -1257,18 +1260,20 @@ paths:
         name: league
         schema:
           type: array
-          items: { type: string }
+          items: { type: integer }   # ✅ UPDATED: was string → now integer ID
         style: form
         explode: true
-        description: Filter by league names
+        description: >
+          -- ✅ UPDATED: Filter by **league IDs** (from `/filter-options?type=league`).
       - in: query
         name: team
         schema:
           type: array
-          items: { type: string }
+          items: { type: integer }   # ✅ UPDATED: was string → now integer ID
         style: form
         explode: true
-        description: Filter by team names
+        description: >
+          -- ✅ UPDATED: Filter by **team IDs** (from `/filter-options?type=team`).
       - in: query
         name: category
         schema:
@@ -1283,12 +1288,12 @@ paths:
         name: location
         schema:
           type: array
-          items: { type: integer }
+          items: { type: integer }   # ✅ stays integer (mapped to countries)
         style: form
         explode: true
         description: >
-          Filter by location IDs (currently mapped to `countries.id`).  
-          Optional — can be combined with other filters or used alone.
+          -- ✅ UPDATED: Filter by **location IDs** (mapped to `countries.id`,  
+          fetched via `/filter-options?type=location`).
       - in: query
         name: match_status
         schema:
@@ -1334,19 +1339,48 @@ paths:
                         page: { type: integer }
                         limit: { type: integer }
                         total: { type: integer }
+        examples:   # ✅ UPDATED: added concrete usage example
+          searchByLeagueAndTeam:
+            summary: Search for Barcelona matches in La Liga
+            value:
+              success: true
+              message: "Search successful"
+              data:
+                query: null
+                filters:
+                  league: [123]     # League ID for "La Liga" from /filter-options
+                  team: [456]       # Team ID for "Barcelona" from /filter-options
+                results:
+                  - id: 2540
+                    title: "Barcelona - Real Madrid"
+                    match_id: 1816
+                    thumbnail: "https://example.com/match-thumb.jpg"
+                    category: "Highlights"
+                    match_date: "2025-09-15T22:30:00.000Z"
+                    league: "La Liga"
+                    country: "Spain"
+                    video_url: "https://www.scorebat.com/embed/v/somevideo"
+                pagination:
+                  page: 1
+                  limit: 20
+                  total: 1
       "400":
         description: Invalid query parameters
       "500":
         description: Internal server error
-
 
   /filter-options:
    get:
     summary: Get available filter options
     description: >
       Fetch selectable options for dynamic filters (used in sidebar/inline filter search).  
-      Some types are static (`category`, `match_status`) and others are dynamic (`team`, `league`, `location`).  
-      `location` is currently mapped to **countries**.
+
+      - **Dynamic types** (`league`, `team`, `location`):  
+        -- ✅ UPDATED: Search by name (`q`) → API returns `{ id, name }`.  
+        Use the returned `id` when calling `/search`.  
+
+      - **Static types** (`category`, `match_status`):  
+        Return fixed lists that can be used directly in `/search`.
     parameters:
       - in: query
         name: type
@@ -1356,14 +1390,14 @@ paths:
           enum: [league, team, location, category, match_status]
         description: >
           Filter type to fetch.  
-          Dynamic types (`league`, `team`, `location`) return results from the database.  
-          Static types (`category`, `match_status`) return fixed lists.
+          Dynamic types return DB-backed results.  
+          Static types return fixed lists.
       - in: query
         name: q
         schema: { type: string }
         description: >
-          Optional text input for searching filter options by **name**.  
-          Example: "Chelsea", "Premier League", "Spain".
+          -- ✅ UPDATED: Optional search term for dynamic types.  
+          Example: `"Barcelona"`, `"La Liga"`, `"Spain"`.
       - in: query
         name: limit
         schema: { type: integer, default: 10 }
@@ -1393,6 +1427,31 @@ paths:
                           id: { type: integer }
                           name: { type: string }
                     total: { type: integer }
+        examples:   # ✅ UPDATED: added concrete usage example
+          filterLeague:
+            summary: Get leagues matching "La Liga"
+            value:
+              success: true
+              message: "Fetched filter options"
+              data:
+                type: "league"
+                query: "La Liga"
+                options:
+                  - id: 123
+                    name: "La Liga"
+                total: 1
+          filterTeam:
+            summary: Get teams matching "Barcelona"
+            value:
+              success: true
+              message: "Fetched filter options"
+              data:
+                type: "team"
+                query: "Barcelona"
+                options:
+                  - id: 456
+                    name: "Barcelona"
+                total: 1
       "400":
         description: Invalid filter type
       "500":
