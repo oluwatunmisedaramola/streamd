@@ -1238,156 +1238,166 @@ paths:
               schema:
                 $ref: "#/components/schemas/AuthErrorResponse"             
   /search:
-    get:
-      summary: Search videos with filters
-      description: >
-        Perform a full-text search across videos and matches, with optional filters.  
-        All filters are optional — can be used alone or in combination.  
-        `location` is currently mapped to **countries**.
-      parameters:
-        - in: query
-          name: q
-          required: false
-          schema:
+   get:
+    summary: Search videos with filters
+    description: >
+      Perform a text-based search across videos, matches, leagues, and teams, with optional filters.  
+      All filters are optional — they can be used alone or in combination.  
+      `location` is currently mapped to **countries**.
+    parameters:
+      - in: query
+        name: q
+        required: false
+        schema:
+          type: string
+        description: >
+          Search query string.  
+          Can match **video titles, match titles, or team names**.
+      - in: query
+        name: league
+        schema:
+          type: array
+          items: { type: string }
+        style: form
+        explode: true
+        description: Filter by league names
+      - in: query
+        name: team
+        schema:
+          type: array
+          items: { type: string }
+        style: form
+        explode: true
+        description: Filter by team names
+      - in: query
+        name: category
+        schema:
+          type: array
+          items:
             type: string
-          description: Main full-text search query
-        - in: query
-          name: league
-          schema:
-            type: array
-            items: { type: integer }
-          style: form
-          explode: true
-          description: Filter by league IDs
-        - in: query
-          name: team
-          schema:
-            type: array
-            items: { type: integer }
-          style: form
-          explode: true
-          description: Filter by team IDs
-        - in: query
-          name: category
-          schema:
-            type: array
-            items:
-              type: string
-              enum: ["All Goals", "Highlights", "Extended Highlights", "Live Stream"]
-          style: form
-          explode: true
-          description: Filter by video categories
-        - in: query
-          name: location
-          schema:
-            type: array
-            items: { type: integer }
-          style: form
-          explode: true
-          description: >
-            Filter by location IDs (currently mapped to `countries.id`).  
-            Optional — can be combined with other filters or used alone.
-        - in: query
-          name: match_status
-          schema:
-            type: string
-            enum: [upcoming, finished, live]
-          description: Match status filter
-        - in: query
-          name: date
-          schema:
-            type: string
-            format: date
-          description: Match date (yyyy-MM-dd)
-        - in: query
-          name: page
-          schema: { type: integer, default: 1, minimum: 1 }
-        - in: query
-          name: limit
-          schema: { type: integer, default: 20, minimum: 1 }
-      responses:
-        "200":
-          description: Search results with optional filters
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success: { type: boolean }
-                  message: { type: string }
-                  data:
-                    type: object
-                    properties:
-                      query: { type: string }
-                      filters:
-                        type: object
-                        additionalProperties: true
-                      results:
-                        type: array
-                        items: { $ref: "#/components/schemas/Video" }
-                      pagination:
-                        type: object
-                        properties:
-                          page: { type: integer }
-                          limit: { type: integer }
-                          total: { type: integer }
-        "400":
-          description: Invalid query parameters
-        "500":
-          description: Internal server error
+            enum: ["All Goals", "Highlights", "Extended Highlights", "Live Stream"]
+        style: form
+        explode: true
+        description: Filter by video categories
+      - in: query
+        name: location
+        schema:
+          type: array
+          items: { type: integer }
+        style: form
+        explode: true
+        description: >
+          Filter by location IDs (currently mapped to `countries.id`).  
+          Optional — can be combined with other filters or used alone.
+      - in: query
+        name: match_status
+        schema:
+          type: string
+          enum: [upcoming, finished, live]
+        description: Match status filter
+      - in: query
+        name: date
+        schema:
+          type: string
+          format: date
+        description: Match date (yyyy-MM-dd)
+      - in: query
+        name: page
+        schema: { type: integer, default: 1, minimum: 1 }
+      - in: query
+        name: limit
+        schema: { type: integer, default: 20, minimum: 1 }
+    responses:
+      "200":
+        description: Search results with optional filters
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success: { type: boolean }
+                message: { type: string }
+                data:
+                  type: object
+                  properties:
+                    query: { type: string }
+                    filters:
+                      type: object
+                      additionalProperties: true
+                    results:
+                      type: array
+                      items:
+                        $ref: "#/components/schemas/Video"
+                    pagination:
+                      type: object
+                      properties:
+                        page: { type: integer }
+                        limit: { type: integer }
+                        total: { type: integer }
+      "400":
+        description: Invalid query parameters
+      "500":
+        description: Internal server error
+
 
   /filter-options:
-    get:
-      summary: Get available filter options
-      description: >
-        Fetch selectable options for dynamic filters (used in sidebar/inline filter search).  
-        Some types are static (category, match_status) and others are dynamic (team, league, location).  
-        `location` is currently mapped to **countries**.
-      parameters:
-        - in: query
-          name: type
-          required: true
-          schema:
-            type: string
-            enum: [league, team, location, category, match_status]
-          description: Filter type to fetch
-        - in: query
-          name: q
-          schema: { type: string }
-          description: Optional text input for searching filter options
-        - in: query
-          name: limit
-          schema: { type: integer, default: 10 }
-        - in: query
-          name: offset
-          schema: { type: integer, default: 0 }
-      responses:
-        "200":
-          description: Filter options list
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  success: { type: boolean }
-                  message: { type: string }
-                  data:
-                    type: object
-                    properties:
-                      type: { type: string }
-                      query: { type: string }
-                      options:
-                        type: array
-                        items:
-                          type: object
-                          properties:
-                            id: { type: integer }
-                            name: { type: string }
-                      total: { type: integer }
-        "400":
-          description: Invalid filter type
-        "500":
-          description: Internal server error          
+   get:
+    summary: Get available filter options
+    description: >
+      Fetch selectable options for dynamic filters (used in sidebar/inline filter search).  
+      Some types are static (`category`, `match_status`) and others are dynamic (`team`, `league`, `location`).  
+      `location` is currently mapped to **countries**.
+    parameters:
+      - in: query
+        name: type
+        required: true
+        schema:
+          type: string
+          enum: [league, team, location, category, match_status]
+        description: >
+          Filter type to fetch.  
+          Dynamic types (`league`, `team`, `location`) return results from the database.  
+          Static types (`category`, `match_status`) return fixed lists.
+      - in: query
+        name: q
+        schema: { type: string }
+        description: >
+          Optional text input for searching filter options by **name**.  
+          Example: "Chelsea", "Premier League", "Spain".
+      - in: query
+        name: limit
+        schema: { type: integer, default: 10 }
+      - in: query
+        name: offset
+        schema: { type: integer, default: 0 }
+    responses:
+      "200":
+        description: Filter options list
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                success: { type: boolean }
+                message: { type: string }
+                data:
+                  type: object
+                  properties:
+                    type: { type: string }
+                    query: { type: string }
+                    options:
+                      type: array
+                      items:
+                        type: object
+                        properties:
+                          id: { type: integer }
+                          name: { type: string }
+                    total: { type: integer }
+      "400":
+        description: Invalid filter type
+      "500":
+        description: Internal server error
+          
 
 components:
   securitySchemes:
