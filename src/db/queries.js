@@ -453,7 +453,7 @@ buildSearchQuery: (filters, mode = "NATURAL", isAutosuggest = false) => {
       const matchParam = mode === "BOOLEAN" ? `${sanitizedQ}*` : sanitizedQ;
 
       if (isAutosuggest) {
-        // 🆕 autosuggest WHERE focuses on team/league/country only
+        // autosuggest WHERE focuses on team/league/country only
         sql += `
           AND (
             t.name LIKE ?
@@ -478,7 +478,7 @@ buildSearchQuery: (filters, mode = "NATURAL", isAutosuggest = false) => {
     }
   }
 
-  // 🆕 Skip filters in autosuggest
+  // Skip filters in autosuggest
   if (!isAutosuggest) {
     if (filters.league?.length) {
       sql += ` AND l.id IN (${filters.league.map(() => "?").join(",")})`;
@@ -513,16 +513,16 @@ buildSearchQuery: (filters, mode = "NATURAL", isAutosuggest = false) => {
   }
 
   if (isAutosuggest) {
-    // 🆕 only distinct team/league/country, ranked by relevance
+    // 🆕 Updated autosuggest to prioritize prefix matches
     sql = `
       SELECT DISTINCT
         t.name AS team,
         l.name AS league,
         co.name AS country,
         CASE
-          WHEN t.name = ? THEN 'team'
-          WHEN l.name = ? THEN 'league'
-          WHEN co.name = ? THEN 'country'
+          WHEN t.name LIKE CONCAT(?, '%') THEN 'team'     -- 🆕 prefix match team
+          WHEN l.name LIKE CONCAT(?, '%') THEN 'league'   -- 🆕 prefix match league
+          WHEN co.name LIKE CONCAT(?, '%') THEN 'country' -- 🆕 prefix match country
           WHEN t.name LIKE ? THEN 'team'
           WHEN l.name LIKE ? THEN 'league'
           WHEN co.name LIKE ? THEN 'country'
@@ -543,23 +543,25 @@ buildSearchQuery: (filters, mode = "NATURAL", isAutosuggest = false) => {
       GROUP BY team, league, country, type
       ORDER BY 
         CASE 
-          WHEN t.name = ? THEN 0
-          WHEN l.name = ? THEN 0
-          WHEN co.name = ? THEN 0
-          WHEN t.name LIKE ? THEN 1
-          WHEN l.name LIKE ? THEN 2
-          WHEN co.name LIKE ? THEN 3
-          ELSE 4
+          WHEN t.name LIKE CONCAT(?, '%') THEN 0   -- 🆕 rank exact/prefix matches first
+          WHEN l.name LIKE CONCAT(?, '%') THEN 1
+          WHEN co.name LIKE CONCAT(?, '%') THEN 2
+          WHEN t.name LIKE ? THEN 3
+          WHEN l.name LIKE ? THEN 4
+          WHEN co.name LIKE ? THEN 5
+          ELSE 6
         END
-      LIMIT 10
+      LIMIT 5 -- 🆕 trimmed to 5 results only
     `;
-    params.splice(0); // reset params for clean insert
+
+    // reset and push fresh params
+    params.splice(0);
     params.push(
-      filters.q, filters.q, filters.q, // exact match
+      filters.q, filters.q, filters.q,               // prefix match type
       `%${filters.q}%`, `%${filters.q}%`, `%${filters.q}%`, // fuzzy type
       `%${filters.q}%`, `%${filters.q}%`, `%${filters.q}%`, // WHERE clause
-      filters.q, filters.q, filters.q, // exact order
-      `%${filters.q}%`, `%${filters.q}%`, `%${filters.q}%`  // fuzzy order
+      filters.q, filters.q, filters.q,               // prefix ordering
+      `%${filters.q}%`, `%${filters.q}%`, `%${filters.q}%`  // fuzzy ordering
     );
   } else {
     sql += `
