@@ -38,9 +38,10 @@ router.get("/search", async (req, res) => {
     offset: (page - 1) * limit
   };
 
-  // 🆕 autosuggest mode is decided here
+  // 🔹 NEW: autosuggest mode requires q length < 4
   const isAutosuggest =
-    !!q && !league && !team && !category && !location && !match_status && !date;
+    !!q && q.length < 4 && // only short queries trigger autosuggest
+    !league && !team && !category && !location && !match_status && !date;
 
   try {
     let { sql, params } = queries.buildSearchQuery(filters, "NATURAL", isAutosuggest);
@@ -67,7 +68,7 @@ router.get("/search", async (req, res) => {
 
     const total = rows.length > 0 ? rows[0].total_count : 0;
 
-    // 🆕 Clean shape for full search
+    // Clean shape for full search
     const results = rows.map(
       ({ total_count, team, ...rest }) => ({
         id: rest.id,
