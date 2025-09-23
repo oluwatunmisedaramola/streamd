@@ -38,31 +38,31 @@ router.get("/search", async (req, res) => {
     offset: (page - 1) * limit
   };
 
+  // 🆕 Detect autosuggest mode: q present, no filters
+  const isAutosuggest = !!q && !league && !team && !category && !location && !match_status && !date;
+
   try {
-    // 1) NATURAL MODE
-    let { sql, params } = queries.buildSearchQuery(filters, "NATURAL");
-    console.log("Trying NATURAL mode...");
-    console.log("Final SQL (NATURAL):\n", formatSQL(sql, params));
+    let { sql, params } = queries.buildSearchQuery(filters, "NATURAL", isAutosuggest); // 🆕 pass isAutosuggest
+    console.log("Final SQL:\n", formatSQL(sql, params));
     let [rows] = await safeQuery(sql, params);
 
-    // 2) BOOLEAN fallback if no results and we had a q
-    if ((!rows || rows.length === 0) && filters.q) {
-      console.log("No rows from NATURAL mode — retrying in BOOLEAN mode...");
-      ({ sql, params } = queries.buildSearchQuery(filters, "BOOLEAN"));
-      console.log("Final SQL (BOOLEAN):\n", formatSQL(sql, params)); // debug-friendly
+    if (!isAutosuggest && (!rows || rows.length === 0) && filters.q) {
+      ({ sql, params } = queries.buildSearchQuery(filters, "BOOLEAN", isAutosuggest));
+      console.log("Final SQL (BOOLEAN fallback):\n", formatSQL(sql, params));
       [rows] = await safeQuery(sql, params);
     }
 
     const total = rows.length > 0 ? rows[0].total_count : 0;
-
-    // strip total_count from each row before returning
     const results = rows.map(({ total_count, ...rest }) => rest);
 
     return successResponse(res, {
       query: q,
-      filters,
+      mode: isAutosuggest ? "autosuggest" : "full", // 🆕 tell frontend mode
+      filters: isAutosuggest ? { q } : filters,     // 🆕 filters ignored in autosuggest
       results,
-      pagination: { page: Number(page), limit: Number(limit), total }
+      pagination: isAutosuggest
+        ? undefined
+        : { page: Number(page), limit: Number(limit), total } // 🆕 no pagination in autosuggest
     });
   } catch (err) {
     return dbErrorHandler(res, err, "search");

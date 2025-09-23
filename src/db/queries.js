@@ -419,7 +419,7 @@ getLocationsByName: `
      MAIN SEARCH QUERY BUILDER
   --------------------------*/
 // ✅ FIXED: Combined: aliasing for frontend + correct mode switching + boolean wildcard
-buildSearchQuery: (filters, mode = "NATURAL") => {
+buildSearchQuery: (filters, mode = "NATURAL", isAutosuggest = false) => { // 🆕 added isAutosuggest
   let sql = `
     SELECT 
       v.id AS id,
@@ -444,16 +444,11 @@ buildSearchQuery: (filters, mode = "NATURAL") => {
 
   const params = [];
 
-  // 🔒 Full-text search (parameterized & sanitized)
   if (filters.q) {
-    // sanitize user input
     const sanitizedQ = String(filters.q).replace(/[^a-zA-Z0-9\s]/g, "").trim();
 
     if (sanitizedQ) {
-      // ✅ FIXED: produce correct AGAINST clause text for each mode
       const modeSql = mode === "BOOLEAN" ? "IN BOOLEAN MODE" : "IN NATURAL LANGUAGE MODE";
-
-      // ✅ FIXED: for BOOLEAN mode use a prefix wildcard (*) for MATCH to improve autocomplete
       const matchParam = mode === "BOOLEAN" ? `${sanitizedQ}*` : sanitizedQ;
 
       sql += `
@@ -461,57 +456,72 @@ buildSearchQuery: (filters, mode = "NATURAL") => {
           MATCH(v.title) AGAINST(? ${modeSql})
           OR MATCH(m.title) AGAINST(? ${modeSql})
           OR t.name LIKE ?
+          OR l.name LIKE ?     -- 🆕 include league name
+          OR co.name LIKE ?    -- 🆕 include country name
         )
       `;
 
-      // push params: MATCH params use matchParam, LIKE uses regular wildcard
-      params.push(matchParam, matchParam, `%${sanitizedQ}%`);
+      params.push(matchParam, matchParam, `%${sanitizedQ}%`, `%${sanitizedQ}%`, `%${sanitizedQ}%`);
     }
   }
 
-  // league
-  if (filters.league?.length) {
-    sql += ` AND l.id IN (${filters.league.map(() => "?").join(",")})`;
-    params.push(...filters.league);
+  // 🆕 Skip filters in autosuggest mode
+  if (!isAutosuggest) {
+    if (filters.league?.length) {
+      sql += ` AND l.id IN (${filters.league.map(() => "?").join(",")})`;
+      params.push(...filters.league);
+    }
+
+    if (filters.team?.length) {
+      sql += ` AND t.id IN (${filters.team.map(() => "?").join(",")})`;
+      params.push(...filters.team);
+    }
+
+    if (filters.category?.length) {
+      sql += ` AND c.name IN (${filters.category.map(() => "?").join(",")})`;
+      params.push(...filters.category);
+    }
+
+    if (filters.location?.length) {
+      sql += ` AND co.id IN (${filters.location.map(() => "?").join(",")})`;
+      params.push(...filters.location);
+    }
+
+    if (filters.date) {
+      sql += ` AND DATE(m.date) = ?`;
+      params.push(filters.date);
+    }
+
+    if (filters.match_status) {
+      if (filters.match_status === "upcoming") sql += ` AND m.date > NOW()`;
+      if (filters.match_status === "finished") sql += ` AND m.date < NOW()`;
+      if (filters.match_status === "live") sql += ` AND m.date BETWEEN DATE_SUB(NOW(), INTERVAL 2 HOUR) AND NOW()`;
+    }
   }
 
-  // team
-  if (filters.team?.length) {
-    sql += ` AND t.id IN (${filters.team.map(() => "?").join(",")})`;
-    params.push(...filters.team);
+  // 🆕 Special ORDER + LIMIT for autosuggest
+  if (isAutosuggest) {
+    sql += `
+      GROUP BY v.id
+      ORDER BY 
+        CASE 
+          WHEN t.name LIKE ? THEN 1
+          WHEN l.name LIKE ? THEN 2
+          WHEN co.name LIKE ? THEN 3
+          ELSE 4
+        END,
+        m.date DESC
+      LIMIT 10
+    `;
+    params.push(`%${filters.q}%`, `%${filters.q}%`, `%${filters.q}%`);
+  } else {
+    sql += `
+      GROUP BY v.id
+      ORDER BY m.date DESC
+      LIMIT ? OFFSET ?
+    `;
+    params.push(Number(filters.limit), Number(filters.offset));
   }
-
-  // category
-  if (filters.category?.length) {
-    sql += ` AND c.name IN (${filters.category.map(() => "?").join(",")})`;
-    params.push(...filters.category);
-  }
-
-  // location → countries
-  if (filters.location?.length) {
-    sql += ` AND co.id IN (${filters.location.map(() => "?").join(",")})`;
-    params.push(...filters.location);
-  }
-
-  // date
-  if (filters.date) {
-    sql += ` AND DATE(m.date) = ?`;
-    params.push(filters.date);
-  }
-
-  // match status
-  if (filters.match_status) {
-    if (filters.match_status === "upcoming") sql += ` AND m.date > NOW()`;
-    if (filters.match_status === "finished") sql += ` AND m.date < NOW()`;
-    if (filters.match_status === "live") sql += ` AND m.date BETWEEN DATE_SUB(NOW(), INTERVAL 2 HOUR) AND NOW()`;
-  }
-
-  sql += `
-    GROUP BY v.id
-    ORDER BY m.date DESC
-    LIMIT ? OFFSET ?
-  `;
-  params.push(Number(filters.limit), Number(filters.offset));
 
   return { sql, params };
 }

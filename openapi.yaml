@@ -1239,10 +1239,23 @@ paths:
                 $ref: "#/components/schemas/AuthErrorResponse"             
   /search:
    get:
-    summary: Search videos with filters
-    description: >
-      Perform a text-based search across videos, matches, leagues, and teams, with optional filters.  
-      All filters are optional — they can be used alone or in combination.  
+    summary: Search videos with filters or autosuggest
+    description: |
+      The `/search` endpoint supports two modes of operation:
+
+      **1. Autosuggest Mode**  
+      - Triggered when only `q` is provided (no filters).  
+      - Optimized for frontend autocomplete.  
+      - Returns up to 10 results ordered by relevance.  
+      - Ignores filters (`league`, `team`, `category`, `location`, `match_status`, `date`).  
+      - **No pagination** is returned.
+
+      **2. Full Search Mode**  
+      - Triggered when filters or pagination are included (with or without `q`).  
+      - Applies all filters (`league`, `team`, `category`, `location`, `match_status`, `date`).  
+      - Supports pagination (`page`, `limit`).  
+      - Returns full result sets with `pagination` metadata.
+
       `location` is currently mapped to **countries**.
     parameters:
       - in: query
@@ -1252,27 +1265,24 @@ paths:
           type: string
         description: >
           Search query string.  
-          Can match **video titles, match titles, or team names**.
+          - In **autosuggest mode**, this is the only parameter used.  
+          - In **full search mode**, it combines with filters and pagination.
       - in: query
         name: league
         schema:
           type: array
-          items: { type: integer }   # ✅ FIX: switched to integer IDs
+          items: { type: integer }
         style: form
         explode: true
-        description: >
-          Filter by league IDs.  
-          Use `/filter-options?type=league` to fetch available IDs.
+        description: Filter by league IDs (ignored in autosuggest mode).
       - in: query
         name: team
         schema:
           type: array
-          items: { type: integer }   # ✅ FIX: switched to integer IDs
+          items: { type: integer }
         style: form
         explode: true
-        description: >
-          Filter by team IDs.  
-          Use `/filter-options?type=team` to fetch available IDs.
+        description: Filter by team IDs (ignored in autosuggest mode).
       - in: query
         name: category
         schema:
@@ -1282,7 +1292,7 @@ paths:
             enum: ["All Goals", "Highlights", "Extended Highlights", "Live Stream"]
         style: form
         explode: true
-        description: Filter by video categories
+        description: Filter by video categories (ignored in autosuggest mode).
       - in: query
         name: location
         schema:
@@ -1290,30 +1300,30 @@ paths:
           items: { type: integer }
         style: form
         explode: true
-        description: >
-          Filter by location IDs (currently mapped to `countries.id`).  
-          Optional — can be combined with other filters or used alone.
+        description: Filter by country IDs (ignored in autosuggest mode).
       - in: query
         name: match_status
         schema:
           type: string
           enum: [upcoming, finished, live]
-        description: Match status filter
+        description: Match status filter (ignored in autosuggest mode).
       - in: query
         name: date
         schema:
           type: string
           format: date
-        description: Match date (yyyy-MM-dd)
+        description: Match date (yyyy-MM-dd) (ignored in autosuggest mode).
       - in: query
         name: page
         schema: { type: integer, default: 1, minimum: 1 }
+        description: Pagination page (ignored in autosuggest mode).
       - in: query
         name: limit
         schema: { type: integer, default: 20, minimum: 1 }
+        description: Pagination size (ignored in autosuggest mode, which always limits to 10).
     responses:
       "200":
-        description: Search results with optional filters
+        description: Search results (autosuggest or full mode)
         content:
           application/json:
             schema:
@@ -1325,6 +1335,10 @@ paths:
                   type: object
                   properties:
                     query: { type: string }
+                    mode:
+                      type: string
+                      enum: [autosuggest, full]
+                      description: Indicates whether the request ran in autosuggest mode or full search mode.
                     filters:
                       type: object
                       additionalProperties: true
@@ -1334,18 +1348,42 @@ paths:
                         $ref: "#/components/schemas/Video"
                     pagination:
                       type: object
+                      nullable: true
+                      description: >
+                        Present only in **full search mode**.  
+                        Omitted in **autosuggest mode**.
                       properties:
                         page: { type: integer }
                         limit: { type: integer }
                         total: { type: integer }
-            examples:   # ✅ FIX: moved examples under content.application/json
-              sample:
-                summary: Example search result
+            examples:
+              autosuggest:
+                summary: Autosuggest example
+                value:
+                  success: true
+                  message: "Success"
+                  data:
+                    query: "chel"
+                    mode: "autosuggest"
+                    filters: { q: "chel" }
+                    results:
+                      - id: 2540
+                        title: "Chelsea vs Arsenal"
+                        match_id: 1816
+                        thumbnail: "https://example.com/thumb.jpeg"
+                        category: "Highlights"
+                        match_date: "2025-09-15T22:30:00.000Z"
+                        league: "Premier League"
+                        country: "ENGLAND"
+                        video_url: "https://example.com/embed"
+              full:
+                summary: Full search example
                 value:
                   success: true
                   message: "Success"
                   data:
                     query: "chelsea"
+                    mode: "full"
                     filters:
                       league: [1]
                       team: [10]
@@ -1354,13 +1392,13 @@ paths:
                       match_status: "finished"
                     results:
                       - id: 2540
-                        title: "Genesis - Real Espana"
+                        title: "Chelsea vs Arsenal"
                         match_id: 1816
                         thumbnail: "https://example.com/thumb.jpeg"
                         category: "Highlights"
                         match_date: "2025-09-15T22:30:00.000Z"
-                        league: "Liga Nacional"
-                        country: "HONDURAS"
+                        league: "Premier League"
+                        country: "ENGLAND"
                         video_url: "https://example.com/embed"
                     pagination:
                       page: 1
