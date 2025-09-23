@@ -46,7 +46,7 @@ router.get("/search", async (req, res) => {
     let { sql, params } = queries.buildSearchQuery(filters, "NATURAL", isAutosuggest);
     let [rows] = await safeQuery(sql, params);
 
-    // 🆕 If autosuggest, return trimmed unique results
+    // autosuggest response
     if (isAutosuggest) {
       const results = rows.map(r => ({
         name: r.team || r.league || r.country,
@@ -54,12 +54,12 @@ router.get("/search", async (req, res) => {
       }));
 
       return successResponse(res, {
-        query: q,
+        query: q || "",
         results
       });
     }
 
-    // otherwise → full search
+    // retry in BOOLEAN mode if NATURAL returns nothing
     if ((!rows || rows.length === 0) && filters.q) {
       ({ sql, params } = queries.buildSearchQuery(filters, "BOOLEAN"));
       [rows] = await safeQuery(sql, params);
@@ -67,10 +67,23 @@ router.get("/search", async (req, res) => {
 
     const total = rows.length > 0 ? rows[0].total_count : 0;
 
-    const results = rows.map(({ total_count, ...rest }) => rest);
+    // 🆕 Clean shape for full search
+    const results = rows.map(
+      ({ total_count, team, ...rest }) => ({
+        id: rest.id,
+        title: rest.title,
+        match_id: rest.match_id,
+        thumbnail: rest.thumbnail,
+        category: rest.category,
+        match_date: rest.match_date,
+        league: rest.league,
+        country: rest.country,
+        video_url: rest.video_url
+      })
+    );
 
     return successResponse(res, {
-      query: q,
+      query: q || "",
       filters,
       results,
       pagination: { page: Number(page), limit: Number(limit), total }
