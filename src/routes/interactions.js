@@ -52,19 +52,19 @@ router.delete("/saved-matches", async (req, res) => {
   }
 });
 
-// List saved matches (only active ones)
+// List saved videos
 router.get("/saved-matches", async (req, res) => {
-  const { subscriber_id } = req.query;
+  const { subscriber_id, limit = 20, offset = 0 } = req.query;
   if (!subscriber_id) return errorResponse(res, "subscriber_id is required", 400);
 
   try {
     const [rows] = await safeQuery(
-      `SELECT * FROM saved_matches WHERE subscriber_id = ? AND deleted_at IS NULL`, // ⚡ UPDATED filter
-      [subscriber_id]
+      queries.getSavedVideosBySubscriber,
+      [subscriber_id, parseInt(limit), parseInt(offset)]
     );
-    return successResponse(res, rows, "Saved matches retrieved.");
+    return successResponse(res, rows, "Saved videos retrieved.");
   } catch (err) {
-    return dbErrorHandler(res, err, "fetch saved matches");
+    return dbErrorHandler(res, err, "fetch saved videos");
   }
 });
 
@@ -117,17 +117,17 @@ router.delete("/loved-matches", async (req, res) => {
 
 // List loved matches
 router.get("/loved-matches", async (req, res) => {
-  const { subscriber_id } = req.query;
+  const { subscriber_id, limit = 20, offset = 0 } = req.query;
   if (!subscriber_id) return errorResponse(res, "subscriber_id is required", 400);
 
   try {
-    const [rows] = await safeQuery( // ⚡ CHANGED
-      `SELECT * FROM loved_matches WHERE subscriber_id = ? AND deleted_at IS NULL`,
-      [subscriber_id]
+    const [rows] = await safeQuery(
+      queries.getLovedVideosBySubscriber,
+      [subscriber_id, parseInt(limit), parseInt(offset)]
     );
-    return successResponse(res, rows, "Loved matches retrieved.");
+    return successResponse(res, rows, "Loved videos retrieved.");
   } catch (err) {
-    return dbErrorHandler(res, err, "fetch loved matches");
+    return dbErrorHandler(res, err, "fetch loved videos");
   }
 });
 
@@ -180,17 +180,17 @@ router.delete("/favorite-matches", async (req, res) => {
 
 // List favorites (only active ones)
 router.get("/favorite-matches", async (req, res) => {
-  const { subscriber_id } = req.query;
+  const { subscriber_id, limit = 20, offset = 0 } = req.query;
   if (!subscriber_id) return errorResponse(res, "subscriber_id is required", 400);
 
   try {
     const [rows] = await safeQuery(
-      `SELECT * FROM favorite_matches WHERE subscriber_id = ? AND deleted_at IS NULL`, // ⚡ UPDATED filter
-      [subscriber_id]
+      queries.getFavoriteVideosBySubscriber,
+      [subscriber_id, parseInt(limit), parseInt(offset)]
     );
-    return successResponse(res, rows, "Favorite matches retrieved.");
+    return successResponse(res, rows, "Favorite videos retrieved.");
   } catch (err) {
-    return dbErrorHandler(res, err, "fetch favorite matches");
+    return dbErrorHandler(res, err, "fetch favorite videos");
   }
 });
 

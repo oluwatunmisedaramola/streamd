@@ -633,29 +633,47 @@ paths:
                 success: false
                 message: "Saved match not found"
                 data: null
+      
     get:
-      summary: List all saved matches for a subscriber
+      summary: List all saved videos for a subscriber
       parameters:
         - in: query
           name: subscriber_id
           required: true
           schema:
             type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: offset
+          required: false
+          schema:
+            type: integer
+            default: 0
       responses:
         "200":
-          description: List of saved matches
+          description: List of saved videos
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponse"
               example:
                 success: true
-                message: "Saved matches retrieved."
+                message: "Saved videos retrieved."
                 data:
-                  - id: 1
+                  - id: 11
+                    title: "Match Highlights"
                     match_id: 55
-                    subscriber_id: 101
-                    created_at: "2025-08-01T10:00:00Z"
+                    thumbnail: "thumb.jpg"
+                    category: "Football"
+                    match_date: "2025-08-01T19:00:00Z"
+                    league: "Premier League"
+                    country: "England"
+                    video_url: "<iframe src=...>"
         "400":
           description: Missing subscriber_id
           content:
@@ -663,7 +681,7 @@ paths:
               example:
                 success: false
                 message: "subscriber_id is required"
-                data: null
+                data: null            
 
   /interactions/loved-matches:
     post:
@@ -727,29 +745,45 @@ paths:
                 message: "Loved match not found"
                 data: null
     get:
-      summary: List all loved matches for a subscriber
+      summary: List all loved videos for a subscriber
       parameters:
         - in: query
           name: subscriber_id
           required: true
           schema:
             type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: offset
+          required: false
+          schema:
+            type: integer
+            default: 0
       responses:
         "200":
-          description: List of loved matches
+          description: List of loved videos
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponse"
               example:
                 success: true
-                message: "Loved matches retrieved."
+                message: "Loved videos retrieved."
                 data:
-                  - id: 1
+                  - id: 22
+                    title: "Top Goals"
                     match_id: 77
-                    subscriber_id: 101
-                    created_at: "2025-08-02T12:00:00Z"
-                    deleted_at: null
+                    thumbnail: "thumb2.jpg"
+                    category: "Football"
+                    match_date: "2025-08-02T17:00:00Z"
+                    league: "La Liga"
+                    country: "Spain"
+                    video_url: "<iframe src=...>"
         "400":
           description: Missing subscriber_id
           content:
@@ -821,28 +855,45 @@ paths:
                 message: "Favorite match not found"
                 data: null
     get:
-      summary: List all favorite matches for a subscriber
+      summary: List all favorite videos for a subscriber
       parameters:
         - in: query
           name: subscriber_id
           required: true
           schema:
             type: integer
+        - in: query
+          name: limit
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: offset
+          required: false
+          schema:
+            type: integer
+            default: 0
       responses:
         "200":
-          description: List of favorite matches
+          description: List of favorite videos
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ApiResponse"
               example:
                 success: true
-                message: "Favorite matches retrieved."
+                message: "Favorite videos retrieved."
                 data:
-                  - id: 1
+                  - id: 33
+                    title: "Final Match Recap"
                     match_id: 99
-                    subscriber_id: 101
-                    created_at: "2025-08-03T14:00:00Z"
+                    thumbnail: "thumb3.jpg"
+                    category: "Football"
+                    match_date: "2025-08-03T21:00:00Z"
+                    league: "Serie A"
+                    country: "Italy"
+                    video_url: "<iframe src=...>"
         "400":
           description: Missing subscriber_id
           content:

@@ -573,6 +573,77 @@ buildSearchQuery: (filters, mode = "NATURAL", isAutosuggest = false) => {
   }
 
   return { sql, params };
-}
+},
+
+
+// 🎥 Videos per interaction
+getSavedVideosBySubscriber: `
+  SELECT 
+    v.id, 
+    v.title, 
+    v.match_id,
+    m.thumbnail, 
+    c.name AS category, 
+    m.date AS match_date,
+    l.name AS league,         
+    co.name AS country,       
+    v.embed_code AS video_url
+  FROM saved_matches sm
+  JOIN videos v ON sm.match_id = v.match_id
+  JOIN categories c ON v.category_id = c.id
+  JOIN matches m ON v.match_id = m.id
+  JOIN leagues l ON m.league_id = l.id
+  JOIN countries co ON l.country_id = co.id
+  WHERE sm.subscriber_id = ? 
+    AND sm.deleted_at IS NULL
+  ORDER BY m.date DESC
+  LIMIT ? OFFSET ?
+`,
+
+getLovedVideosBySubscriber: `
+  SELECT 
+    v.id, 
+    v.title, 
+    v.match_id,
+    m.thumbnail, 
+    c.name AS category, 
+    m.date AS match_date,
+    l.name AS league,         
+    co.name AS country,       
+    v.embed_code AS video_url
+  FROM loved_matches lm
+  JOIN videos v ON lm.match_id = v.match_id
+  JOIN categories c ON v.category_id = c.id
+  JOIN matches m ON v.match_id = m.id
+  JOIN leagues l ON m.league_id = l.id
+  JOIN countries co ON l.country_id = co.id
+  WHERE lm.subscriber_id = ? 
+    AND lm.deleted_at IS NULL
+  ORDER BY m.date DESC
+  LIMIT ? OFFSET ?
+`,
+
+getFavoriteVideosBySubscriber: `
+  SELECT 
+    v.id, 
+    v.title, 
+    v.match_id,
+    m.thumbnail, 
+    c.name AS category, 
+    m.date AS match_date,
+    l.name AS league,         
+    co.name AS country,       
+    v.embed_code AS video_url
+  FROM favorite_matches fm
+  JOIN videos v ON fm.match_id = v.match_id
+  JOIN categories c ON v.category_id = c.id
+  JOIN matches m ON v.match_id = m.id
+  JOIN leagues l ON m.league_id = l.id
+  JOIN countries co ON l.country_id = co.id
+  WHERE fm.subscriber_id = ? 
+    AND fm.deleted_at IS NULL
+  ORDER BY m.date DESC
+  LIMIT ? OFFSET ?
+`,
 
 }
