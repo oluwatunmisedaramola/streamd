@@ -38,31 +38,42 @@ router.get("/search", async (req, res) => {
     offset: (page - 1) * limit
   };
 
-  // 🆕 Detect autosuggest mode: q present, no filters
-  const isAutosuggest = !!q && !league && !team && !category && !location && !match_status && !date;
+  // 🆕 autosuggest mode is decided here
+  const isAutosuggest =
+    !!q && !league && !team && !category && !location && !match_status && !date;
 
   try {
-    let { sql, params } = queries.buildSearchQuery(filters, "NATURAL", isAutosuggest); // 🆕 pass isAutosuggest
-    console.log("Final SQL:\n", formatSQL(sql, params));
+    let { sql, params } = queries.buildSearchQuery(filters, "NATURAL", isAutosuggest);
     let [rows] = await safeQuery(sql, params);
 
-    if (!isAutosuggest && (!rows || rows.length === 0) && filters.q) {
-      ({ sql, params } = queries.buildSearchQuery(filters, "BOOLEAN", isAutosuggest));
-      console.log("Final SQL (BOOLEAN fallback):\n", formatSQL(sql, params));
+    // 🆕 If autosuggest, return trimmed unique results
+    if (isAutosuggest) {
+      const results = rows.map(r => ({
+        name: r.team || r.league || r.country,
+        type: r.type
+      }));
+
+      return successResponse(res, {
+        query: q,
+        results
+      });
+    }
+
+    // otherwise → full search
+    if ((!rows || rows.length === 0) && filters.q) {
+      ({ sql, params } = queries.buildSearchQuery(filters, "BOOLEAN"));
       [rows] = await safeQuery(sql, params);
     }
 
     const total = rows.length > 0 ? rows[0].total_count : 0;
+
     const results = rows.map(({ total_count, ...rest }) => rest);
 
     return successResponse(res, {
       query: q,
-      mode: isAutosuggest ? "autosuggest" : "full", // 🆕 tell frontend mode
-      filters: isAutosuggest ? { q } : filters,     // 🆕 filters ignored in autosuggest
+      filters,
       results,
-      pagination: isAutosuggest
-        ? undefined
-        : { page: Number(page), limit: Number(limit), total } // 🆕 no pagination in autosuggest
+      pagination: { page: Number(page), limit: Number(limit), total }
     });
   } catch (err) {
     return dbErrorHandler(res, err, "search");

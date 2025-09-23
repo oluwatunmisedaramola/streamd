@@ -419,7 +419,7 @@ getLocationsByName: `
      MAIN SEARCH QUERY BUILDER
   --------------------------*/
 // ✅ FIXED: Combined: aliasing for frontend + correct mode switching + boolean wildcard
-buildSearchQuery: (filters, mode = "NATURAL", isAutosuggest = false) => { // 🆕 added isAutosuggest
+buildSearchQuery: (filters, mode = "NATURAL", isAutosuggest = false) => {
   let sql = `
     SELECT 
       v.id AS id,
@@ -431,6 +431,7 @@ buildSearchQuery: (filters, mode = "NATURAL", isAutosuggest = false) => { // �
       l.name AS league,
       co.name AS country,
       v.embed_code AS video_url,
+      t.name AS team,
       COUNT(*) OVER() as total_count
     FROM videos v
     JOIN matches m ON v.match_id = m.id
@@ -451,21 +452,33 @@ buildSearchQuery: (filters, mode = "NATURAL", isAutosuggest = false) => { // �
       const modeSql = mode === "BOOLEAN" ? "IN BOOLEAN MODE" : "IN NATURAL LANGUAGE MODE";
       const matchParam = mode === "BOOLEAN" ? `${sanitizedQ}*` : sanitizedQ;
 
-      sql += `
-        AND (
-          MATCH(v.title) AGAINST(? ${modeSql})
-          OR MATCH(m.title) AGAINST(? ${modeSql})
-          OR t.name LIKE ?
-          OR l.name LIKE ?     -- 🆕 include league name
-          OR co.name LIKE ?    -- 🆕 include country name
-        )
-      `;
-
-      params.push(matchParam, matchParam, `%${sanitizedQ}%`, `%${sanitizedQ}%`, `%${sanitizedQ}%`);
+      if (isAutosuggest) {
+        // 🆕 autosuggest WHERE focuses on team/league/country only
+        sql += `
+          AND (
+            t.name LIKE ?
+            OR l.name LIKE ?
+            OR co.name LIKE ?
+          )
+        `;
+        params.push(`%${sanitizedQ}%`, `%${sanitizedQ}%`, `%${sanitizedQ}%`);
+      } else {
+        // full search
+        sql += `
+          AND (
+            MATCH(v.title) AGAINST(? ${modeSql})
+            OR MATCH(m.title) AGAINST(? ${modeSql})
+            OR t.name LIKE ?
+            OR l.name LIKE ?
+            OR co.name LIKE ?
+          )
+        `;
+        params.push(matchParam, matchParam, `%${sanitizedQ}%`, `%${sanitizedQ}%`, `%${sanitizedQ}%`);
+      }
     }
   }
 
-  // 🆕 Skip filters in autosuggest mode
+  // 🆕 Skip filters in autosuggest
   if (!isAutosuggest) {
     if (filters.league?.length) {
       sql += ` AND l.id IN (${filters.league.map(() => "?").join(",")})`;
@@ -499,21 +512,55 @@ buildSearchQuery: (filters, mode = "NATURAL", isAutosuggest = false) => { // �
     }
   }
 
-  // 🆕 Special ORDER + LIMIT for autosuggest
   if (isAutosuggest) {
-    sql += `
-      GROUP BY v.id
+    // 🆕 only distinct team/league/country, ranked by relevance
+    sql = `
+      SELECT DISTINCT
+        t.name AS team,
+        l.name AS league,
+        co.name AS country,
+        CASE
+          WHEN t.name = ? THEN 'team'
+          WHEN l.name = ? THEN 'league'
+          WHEN co.name = ? THEN 'country'
+          WHEN t.name LIKE ? THEN 'team'
+          WHEN l.name LIKE ? THEN 'league'
+          WHEN co.name LIKE ? THEN 'country'
+          ELSE 'video'
+        END AS type
+      FROM videos v
+      JOIN matches m ON v.match_id = m.id
+      JOIN leagues l ON m.league_id = l.id
+      JOIN countries co ON l.country_id = co.id
+      LEFT JOIN match_teams mt ON m.id = mt.match_id
+      LEFT JOIN teams t ON mt.team_id = t.id
+      WHERE 1=1
+      AND (
+        t.name LIKE ?
+        OR l.name LIKE ?
+        OR co.name LIKE ?
+      )
+      GROUP BY team, league, country, type
       ORDER BY 
         CASE 
+          WHEN t.name = ? THEN 0
+          WHEN l.name = ? THEN 0
+          WHEN co.name = ? THEN 0
           WHEN t.name LIKE ? THEN 1
           WHEN l.name LIKE ? THEN 2
           WHEN co.name LIKE ? THEN 3
           ELSE 4
-        END,
-        m.date DESC
+        END
       LIMIT 10
     `;
-    params.push(`%${filters.q}%`, `%${filters.q}%`, `%${filters.q}%`);
+    params.splice(0); // reset params for clean insert
+    params.push(
+      filters.q, filters.q, filters.q, // exact match
+      `%${filters.q}%`, `%${filters.q}%`, `%${filters.q}%`, // fuzzy type
+      `%${filters.q}%`, `%${filters.q}%`, `%${filters.q}%`, // WHERE clause
+      filters.q, filters.q, filters.q, // exact order
+      `%${filters.q}%`, `%${filters.q}%`, `%${filters.q}%`  // fuzzy order
+    );
   } else {
     sql += `
       GROUP BY v.id
